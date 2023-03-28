@@ -1,2 +1,16 @@
 The "dag_level" object in this JSON represents the configuration for the first level of tasks that will be triggered by our Airflow program, which we call "auto trigger". These tasks will make API requests to a downstream system using the specified HTTP connection ID, HTTP method, endpoint, and data payload. The purpose of this configuration is to specify the details of the API requests that need to be made and the order in which they should be triggered. By defining this configuration in the "dag_level" object, we can easily add, modify, or remove tasks in this level as needed.
 
+---
+The file_level object is another section of the configuration file for the "auto trigger" program. It contains multiple file objects, such as file_a, file_b, etc. Each file object can have its own project_id array, which specifies the project or projects that the file belongs to. Additionally, each file object can also have one or more http_cfg objects, which are similar to the DAG level configuration.
+
+Overall, the file_level object allows the "auto trigger" program to manage different files that are related to different projects, and to configure the appropriate API calls for each file based on the http_cfg objects.
+
+Each parameter in the configuration will only take effect if it is configured. Otherwise, the corresponding task will not be loaded. This allows for more flexibility in customizing the configuration to suit specific needs.
+
+---
+
+project_level is another object in the JSON configuration that defines the configuration for each project. It contains an array of projects, where each project is represented as an object with a project name as the key and an array of tasks as the value. Each task in the array represents a configuration for a task that triggers the downstream system's API.
+
+Just like the file_level, each task in the project_level object can have its own configuration for http_cfg, http_conn_id, method, endPoint, and data. Also, the tasks can be configured to belong to one or multiple projects using the project_id parameter.
+
+Similar to the dag_level and file_level, the tasks in project_level will only be added as tasks to the Airflow DAG if they are configured with the relevant parameters.
