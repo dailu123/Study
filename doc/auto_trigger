@@ -14,3 +14,84 @@ project_level is another object in the JSON configuration that defines the confi
 Just like the file_level, each task in the project_level object can have its own configuration for http_cfg, http_conn_id, method, endPoint, and data. Also, the tasks can be configured to belong to one or multiple projects using the project_id parameter.
 
 Similar to the dag_level and file_level, the tasks in project_level will only be added as tasks to the Airflow DAG if they are configured with the relevant parameters.
+
+
+1.1
+based on Apache Airflow. The purpose of this document is to provide a clear understanding of the auto trigger process and design approach for the downstream systems. Specifically, it aims to address the business requirement of propagating CBTDOC data immediately after landing on GCP or Hadoop and initiating the transfer through API trigger.
+
+The document will introduce the three categories of Airflow API trigger approaches, including API trigger in one go country by country, API trigger by file level, and API trigger by project level. The main focus of this document is to provide a detailed design approach for the auto trigger process, which includes auto trigger configuration and auto trigger flow control.
+
+By following the design approach proposed in this document, the downstream users will be able to trigger the API call for the desired data transfer in a timely and efficient manner, thus meeting the business requirement and enhancing the overall data propagation process.
+
+---2.4
+The Airflow variable includes a JSON object that controls the API trigger level. The parameters for project level, file level, and DAG level are independent of each other and can be controlled individually.
+
+a) API Trigger by project: If the "project level" JSON object is not null, the API trigger will be by project level. If it is null, the trigger won't be at the project level.
+
+b) API Trigger by file: If the "file level" JSON object is not null, the API trigger will be at the file level. If it is null, the trigger won't be at the file level.
+
+c) API Trigger by DAG: If the "dag level" JSON object is not null, the API trigger will be at the DAG level. If it is null, the trigger won't be at the DAG level.
+
+Event trigger tasks will be generated in Airflow based on the JSON object. The API call related information is configured in Airflow variable and connection, allowing for calling different downstream users based on the configurations.
+
+---
+
+Assumptions and constraints are important factors to consider when designing a system. They help identify potential risks and limitations that may impact the system's functionality or performance. Here are some examples of assumptions and constraints that could be relevant to your design:
+
+Assumptions:
+
+The CBTDOC data will be available on GCP or Hadoop at a specific time.
+The downstream users have the necessary access permissions to trigger the API calls.
+The API calls will be able to handle large volumes of data and high traffic.
+The downstream systems are able to process and consume the data in a timely manner.
+Constraints:
+
+The design must comply with existing security and compliance policies.
+The system must be able to handle the workload within the allocated resources and infrastructure.
+The API trigger process should not impact other data processing or workflows in the system.
+The system must be able to handle errors and failures in a resilient and efficient manner.
+These are just some examples, and it's important to identify and document all relevant assumptions and constraints for your specific design.
+
+
+----
+Risks and Mitigations:
+
+API Trigger Failure: In the event of an API trigger failure, downstream users will not be able to initiate the transfer of CBTDOC data. This could potentially lead to delays in data propagation and negatively impact business operations.
+Mitigation: To mitigate the risk of API trigger failure, a robust monitoring system will be put in place to alert system administrators in the event of any issues. Additionally, regular testing and maintenance of the API trigger process will be conducted to ensure its reliability.
+
+Data Security Breach: The transfer of CBTDOC data may potentially expose sensitive business information to security threats, such as data breaches or unauthorized access.
+Mitigation: The API trigger process will be designed with security as a top priority, with encryption and other security measures implemented to protect the transfer of sensitive data. Access controls will also be put in place to ensure that only authorized users have access to the data.
+
+Dependency Management Issues: Dependency management issues may arise as a result of updates or changes to the software components used in the API trigger process. This could potentially cause compatibility issues or other problems that may impact the reliability of the API trigger process.
+Mitigation: Regular testing and maintenance of the API trigger process will be conducted to ensure that any potential compatibility issues are identified and addressed in a timely manner. Additionally, a well-documented version control system will be put in place to keep track of changes and ensure that all components are kept up-to-date and compatible.
+
+
+----
+Testing Plan
+
+To ensure the functionality and reliability of the auto trigger process for downstream systems, a comprehensive testing plan will be executed. The testing plan will include the following steps:
+
+Unit Testing: Unit tests will be conducted to ensure that each component of the auto trigger process is working as expected. The unit tests will be automated and will cover all possible scenarios.
+Integration Testing: Integration testing will be conducted to ensure that all components of the auto trigger process are working together as expected. The integration tests will include testing the interaction between different components and testing the flow of data.
+System Testing: System testing will be conducted to ensure that the auto trigger process is working correctly in a production-like environment. This will involve testing the system under different loads and volumes of data to ensure that it can handle the expected workload.
+User Acceptance Testing (UAT): UAT will be conducted to ensure that the auto trigger process meets the business requirements and is user-friendly. This will involve testing the system with a group of end-users to ensure that it is easy to use and that it meets their needs.
+Performance Testing: Performance testing will be conducted to ensure that the auto trigger process can handle the expected workload and provide a timely response. This will involve testing the system under different loads and volumes of data to ensure that it meets the performance requirements.
+Security Testing: Security testing will be conducted to ensure that the auto trigger process is secure and that sensitive data is protected. This will involve testing the system for vulnerabilities and ensuring that appropriate security measures are in place.
+Regression Testing: Regression testing will be conducted to ensure that any changes made to the auto trigger process do not break any existing functionality. This will involve testing the system after any changes or updates have been made.
+Overall, the testing plan will ensure that the auto trigger process is thoroughly tested and meets the business requirements, ensuring the reliability and functionality of the downstream systems.
+
+
+
+Dear [Recipient],
+
+I am writing to bring to your attention a critical issue that has arisen with our Juniper system in the HK Prod environment. I want to emphasize that this is not a corebanking feed problem, but rather a functionality issue with Juniper.
+
+We have identified that many Juniper write jobs are showing as successful, but are not actually writing the avro into the bucket. This has led to a false sense of success and is a serious issue that needs to be addressed immediately.
+
+I kindly request that you help us investigate and find the root cause of this problem as soon as possible. Your expertise and support in this matter would be greatly appreciated.
+
+Thank you for your attention to this matter.
+
+Best regards,
+
+[Your Name]
