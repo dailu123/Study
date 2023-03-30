@@ -1,0 +1,164 @@
+1.2 Scope
+
+The scope of this document is to provide a detailed understanding of the auto trigger process and design approach for propagating CBTDOC data immediately after landing on GCP or Hadoop and initiating the transfer through API trigger. This document aims to provide a comprehensive guide to the design and implementation of the auto trigger process in a way that can be easily understood by both technical and non-technical stakeholders.
+
+The document will cover the following topics:
+
+Overview of the auto trigger process and its benefits
+Assumptions and constraints
+Risk management and mitigation strategies
+Error handling procedures
+Testing plan
+API trigger by country-level configuration
+API trigger by file-level configuration
+API trigger by project-level configuration
+Monitoring and maintenance considerations
+The document is intended to serve as a reference for the development team, project managers, and stakeholders to ensure that the auto trigger process is implemented successfully and meets the business requirements. It is also expected that this document will be used as a basis for future enhancements and modifications to the auto trigger process.
+
+
+1.3 Out of Scope
+
+The following items are considered out of scope for this project:
+
+Development of the downstream systems that receive the data transferred by the auto trigger process.
+Implementation of any authentication or authorization mechanisms for accessing the data.
+Integration with any third-party tools or services not explicitly mentioned in this document.
+Design or implementation of any user interfaces for interacting with the auto trigger process.
+Configuration or maintenance of the underlying infrastructure required for the auto trigger process, including but not limited to servers, databases, and networking equipment.
+Performance optimization of the auto trigger process beyond what is necessary to meet the specified business requirements.
+Development of any additional features or functionality beyond what is specified in this document.
+Development of any custom data transformation or processing logic beyond what is necessary to facilitate the data transfer process.
+
+
+2.1 Product Overview
+1 / 1
+
+The product is a data processing system that aims to automate the data propagation process from CBTDOC data sources to downstream systems. The system is based on Apache Airflow and utilizes its workflow management capabilities to orchestrate the data transfer process.
+
+2.2 Product Features
+
+Auto trigger process: The system provides an auto trigger process that can be configured to trigger API calls for data transfer immediately after the data is landed on GCP or Hadoop.
+API trigger by country: The system provides the ability to trigger API calls for data transfer by country.
+API trigger by file level: The system provides the ability to trigger API calls for data transfer at the file level.
+API trigger by project level: The system provides the ability to trigger API calls for data transfer at the project level.
+Error handling: The system includes error handling capabilities to ensure that any errors that occur during the data transfer process are logged and addressed promptly.
+Testing plan: The system includes a comprehensive testing plan to ensure that the data propagation process is reliable and efficient.
+2.3 User Groups
+
+The primary users of the system are data engineers and analysts who are responsible for ensuring that data is propagated from the CBTDOC data sources to downstream systems. The system may also be used by other members of the organization who require access to the data being transferred.
+
+
+2.2 Solution Diagram 
+The solution diagram for the auto trigger process is illustrated below:
+
+sql
+Copy code
+       +-------------+                  +----------------+                  +----------------------+
+       |             |                  |                |                  |                      |
+       | CBTDOC Data |                  |     Google     |                  |     Downstream       |
+       |   Source    |                  | Cloud Platform |                  |   Systems/Services   |
+       |             |                  |                |                  |                      |
+       +-------------+                  +----------------+                  +----------------------+
+             |                                     |                                      |
+             |    Landing on GCP or Hadoop           |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |        API trigger by project level    |
+             |                                     |<-------------------------------------+
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |     Data transfer completed          |
+             |                                     |<-------------------------------------+
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             |                                     |                                      |
+             V                                     V                                      V
+The above diagram illustrates the overall flow of the auto trigger process. The CBTDOC data source is landed on GCP or Hadoop, and the downstream systems/services require the data to be propagated immediately. To address this requirement, the Airflow API trigger is used to initiate the data transfer process. The API trigger is implemented at the project level, which allows the downstream users to trigger the data transfer in a timely and efficient manner.
+
+This solution diagram provides a clear understanding of the auto trigger process flow and the role of the API trigger in data propagation.
+
+2.3 Main Procedure
+
+The main procedure of the auto trigger process for propagating CBTDOC data to downstream systems via Airflow API trigger consists of the following steps:
+
+Landing the CBTDOC data on GCP or Hadoop.
+Configuring the auto trigger process through the Airflow UI, including the selection of the trigger type, the specification of the trigger parameters, and the setting of the trigger frequency.
+Setting up the API connection between Airflow and the downstream systems.
+Initiating the API trigger to transfer the CBTDOC data from GCP or Hadoop to the downstream systems.
+Monitoring the API trigger process through the Airflow UI and handling any errors that occur during the transfer.
+The main goal of the auto trigger process is to ensure that CBTDOC data is propagated to downstream systems in a timely and efficient manner, reducing manual intervention and enhancing the overall data propagation process. The use of Airflow API trigger provides a scalable and reliable way to automate this process, with the ability to trigger data transfers at various levels (country, file, or project) and with different frequency settings.
+
+
+Sure, here is the content for section 3.1.1 "Connection Configuration":
+
+3.1.1 Connection Configuration
+
+In order to trigger API calls for data transfer, connections to external systems must be established. The connection configuration includes details such as the connection type, host name, port number, authentication credentials, and other relevant parameters.
+
+For this project, the following connection configurations are required:
+
+Connection to the GCP API to initiate data transfer
+Connection to the Hadoop system to initiate data transfer
+The connection configuration details should be stored securely and centrally in a configuration management system. Access to the configuration information should be strictly controlled and monitored.
+
+The connections should be tested and verified prior to executing the auto trigger process to ensure that the data transfer is initiated successfully.
+
+
+To configure a connection in Airflow, navigate to Admin->Connections in the Airflow Web UI.
+
+In the "Connections" interface, you can add a new connection.
+
+When adding a new connection, you need to specify the following information:
+
+Connection ID: A unique identifier for the HTTP connection.
+Conn Type: The type of the HTTP connection, which in this case is "HTTP".
+Host: The hostname or IP address of the downstream system.
+Port: The port number of the downstream system.
+Schema: The schema of the downstream system, which in this case is "http".
+Login: The login credentials for the downstream system, if required.
+Password: The password credentials for the downstream system, if required.
+Extra: Any additional configuration parameters required for the HTTP connection, such as SSL certificates or headers.
+
+
+3.1.2 Variable Configuration
+
+The proposed solution requires configuration of the following variables in Airflow:
+
+project_id: The ID of the project that the DAG belongs to.
+dag_id: The ID of the DAG.
+http_conn_id: The connection ID for the HTTP connection to the downstream system.
+These variables can be defined in the Airflow Web UI by navigating to the Admin->Variables page and clicking the "Create" button.
+
+When defining each variable, it is important to provide a clear description and define its type, such as string or integer.
+
+These variables can be used throughout the DAG code to access the values defined in the Airflow Variables, enabling easier configuration and maintenance of the DAGs.
+
+3.1.2 Variable Configuration
+
+The variable configuration defines the HTTP requests to be made to downstream systems when a DAG is triggered. The JSON file format for the variable configuration includes three levels: DAG level, file level, and project level.
+
+In this specific case, we only have a variable defined at the DAG level, which includes the following information:
+
+http_conn_id: the name of the HTTP connection configured in Airflow
+method: the HTTP method to be used, in this case "POST"
+endPoint: the endpoint to be called
+data: the JSON payload to be sent in the request body
+This configuration specifies the HTTP request to be sent to trigger a Juniper job in the downstream system. The data field includes the project name, feed name, and event to be triggered.
+
+To configure this variable in Airflow, the JSON file needs to be uploaded to the Airflow variable store. This can be done through the Airflow web UI by navigating to Admin->Variables and adding a new variable with the JSON content. The variable can then be referenced in a DAG using the Variable.get method.
+
+
+
