@@ -161,4 +161,20 @@ This configuration specifies the HTTP request to be sent to trigger a Juniper jo
 To configure this variable in Airflow, the JSON file needs to be uploaded to the Airflow variable store. This can be done through the Airflow web UI by navigating to Admin->Variables and adding a new variable with the JSON content. The variable can then be referenced in a DAG using the Variable.get method.
 
 
+---desc
+The purpose of this change order is to initiate the release of the VNM SBV project in coordination with the HUBm release. The main focus of this change is to upgrade the SBV to the latest version. The change will require testing to ensure that all components are functioning as expected and that the new version of SBV is fully integrated with the HUBm release. The change will also involve communication and collaboration with relevant stakeholders to ensure a smooth and successful release.
 
+
+Execution Steps:
+
+Clone the project from the Git repository.
+Open the project in your preferred IDE.
+Compile the source code to generate the class files.
+Run the project to test its functionality.
+If any issues arise during testing, debug the code and repeat steps 3-4.
+Once the project is fully functional, create a JAR file for deployment.
+Upload the JAR file to the server or cloud platform where it will be hosted.
+Ensure that any necessary configurations or environment variables are set up correctly.
+Deploy the project to the target environment.
+Verify that the project is running correctly in the target environment.
+Of course, the specific execution steps may vary depending on the details of your project, but this gives you a general idea of what to include in the description.
