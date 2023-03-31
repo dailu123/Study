@@ -178,3 +178,17 @@ Ensure that any necessary configurations or environment variables are set up cor
 Deploy the project to the target environment.
 Verify that the project is running correctly in the target environment.
 Of course, the specific execution steps may vary depending on the details of your project, but this gives you a general idea of what to include in the description.
+
+
+This change order is for the VNM SBV project release, which is a Java project aimed to upgrade SBV. After the HUBm release, this change order is necessary to ensure the compatibility of the SBV upgrade. The following are the execution steps for this change order:
+
+Prepare the release package and share it in the designated folder.
+Request the support team to deploy the package to SBV.
+Ask the support team to restart the SBV service.
+Conduct a health check from the application team to ensure the SBV upgrade has been successful.
+Notify stakeholders of the upcoming SBV upgrade.
+Conduct a pre-release testing to ensure the package is ready for deployment.
+Schedule a maintenance window for the SBV upgrade.
+Verify the package has been successfully deployed to SBV.
+Conduct post-release testing to ensure the upgrade was successful.
+Notify stakeholders that the SBV upgrade has been completed.
