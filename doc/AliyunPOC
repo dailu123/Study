@@ -1,0 +1,14 @@
+Epic Title: Flink-RocketMQ Integration for Message Forwarding
+
+Feature Title: Message Forwarding from RocketMQ to Another RocketMQ Topic using Flink
+
+Feature Description: This feature aims to enable message forwarding from a source RocketMQ topic to a target RocketMQ topic using Flink. The feature will involve the following tasks:
+
+Configure the RocketMQ source connector to read messages from the source RocketMQ topic.
+Develop a Flink pipeline to consume messages from the source RocketMQ topic and transform them as per requirements.
+Configure the RocketMQ sink connector to write the transformed messages to the target RocketMQ topic.
+Test the integration to ensure reliable message forwarding with no data loss.
+Provide documentation and training materials to facilitate the use and maintenance of the integrated system.
+Note: This feature is part of the larger Epic titled "Establishing a Flink-RocketMQ Link", which aims to provide a proof of concept for integrating Flink and RocketMQ for various use cases.
+
+
