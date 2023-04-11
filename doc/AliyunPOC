@@ -12,3 +12,8 @@ Provide documentation and training materials to facilitate the use and maintenan
 Note: This feature is part of the larger Epic titled "Establishing a Flink-RocketMQ Link", which aims to provide a proof of concept for integrating Flink and RocketMQ for various use cases.
 
 
+In the context of real-time data processing for a financial institution, as a risk analyst, I want to filter and re-structure incoming messages from a RocketMQ topic using Flink, in order to identify and mitigate potential financial risks.
+
+To achieve this, I need to have a system in place that can consume data from the RocketMQ topic, apply certain filters to extract only relevant information, and then re-structure the data in a format that is suitable for my analysis. The system should be able to handle a high volume of messages and provide real-time processing capabilities to ensure that I can detect risks as soon as possible.
+
+By integrating Flink with RocketMQ, I can build a system that meets these requirements. Flink's stream processing capabilities enable me to apply filters and transform data in real-time, while RocketMQ's messaging system ensures that the messages are reliably delivered to the system. This integration will help me to identify potential financial risks as soon as they arise, which will enable me to take proactive measures to mitigate these risks and protect the interests of the financial institution.
