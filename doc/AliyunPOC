@@ -17,3 +17,22 @@ In the context of real-time data processing for a financial institution, as a ri
 To achieve this, I need to have a system in place that can consume data from the RocketMQ topic, apply certain filters to extract only relevant information, and then re-structure the data in a format that is suitable for my analysis. The system should be able to handle a high volume of messages and provide real-time processing capabilities to ensure that I can detect risks as soon as possible.
 
 By integrating Flink with RocketMQ, I can build a system that meets these requirements. Flink's stream processing capabilities enable me to apply filters and transform data in real-time, while RocketMQ's messaging system ensures that the messages are reliably delivered to the system. This integration will help me to identify potential financial risks as soon as they arise, which will enable me to take proactive measures to mitigate these risks and protect the interests of the financial institution.
+
+
+Acceptance Criteria Details:
+
+The system should be able to consume messages from the source RocketMQ topic and apply the specified filters to extract relevant information.
+The system should be able to re-structure the filtered data into a suitable format for downstream users.
+The system should write the restructured data to the target RocketMQ topic reliably with no data loss.
+The system should be able to handle high volumes of incoming messages and provide real-time processing capabilities.
+Downstream users should be able to use the restructured data for their specific use cases.
+Detail Steps:
+
+Set up and configure Flink and RocketMQ to integrate with each other.
+Create a Flink job to consume messages from the source RocketMQ topic and apply the specified filters to extract relevant information.
+Use Flink to re-structure the filtered data into a suitable format for downstream users.
+Configure RocketMQ to write the restructured data to the target RocketMQ topic reliably with no data loss.
+Test the system with a high volume of incoming messages to ensure that it can handle the load and provide real-time processing capabilities.
+Verify that downstream users can use the restructured data for their specific use cases.
+Make any necessary adjustments to the Flink and RocketMQ configurations to optimize performance and reliability.
+Deploy the integrated system to production and monitor for any issues or errors.
