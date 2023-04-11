@@ -87,3 +87,16 @@ The filtering criteria should be configurable by users and support both fixed an
 The system should be able to query data from MaxComputer tables in real-time and use this data to filter incoming messages.
 The system should be able to handle errors and exceptions gracefully and provide adequate logging and monitoring capabilities.
 Once the Flink job is implemented and tested, downstream users should be able to receive filtered messages that are relevant to their specific needs and requirements.
+
+
+In the context of a messaging service provider that relies on MaxComputer for storing large amounts of data, as a user, I want to be able to efficiently filter incoming messages by joining them with data from MaxComputer tables using Flink, in order to provide relevant and timely data to downstream users.
+
+The use case involves implementing a Flink job that receives messages from a RocketMQ topic and joins them with relevant data from MaxComputer tables. The filtered messages are then forwarded to a downstream RocketMQ topic.
+
+The key requirements for this use case are as follows:
+
+The system should be able to handle a high volume of incoming messages and provide real-time processing capabilities.
+The system should be able to join messages with relevant data from MaxComputer tables in real-time and with high efficiency.
+The system should be able to handle and process large amounts of data from MaxComputer tables.
+The system should be able to handle errors and exceptions gracefully and provide adequate logging and monitoring capabilities.
+Once the Flink job is implemented and tested, downstream users should be able to receive filtered messages that are relevant to their specific needs and requirements, with data from MaxComputer efficiently joined and processed by Flink.
