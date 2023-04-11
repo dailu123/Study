@@ -50,3 +50,29 @@ Measure the system's response time and throughput under different message loads 
 Note: These end-to-end test steps should validate that the integration between Flink and RocketMQ is working as expected and that the restructured data is delivered reliably with no data loss and can be used by downstream users for their specific use cases.
 
 
+Epic: Connect Flink with MaxComputer to filter messages
+
+Feature: Use Flink to query tables in MaxComputer and filter incoming messages based on the query results.
+
+As a data analyst, I want to use Flink to connect with MaxComputer and query tables to filter incoming messages, in order to extract relevant data for downstream analysis and processing.
+
+Acceptance Criteria:
+
+Flink job is able to connect with MaxComputer and query tables using SQL statements.
+Flink job is able to consume messages from the source system and filter them based on the query results.
+Filtered messages are delivered to the target system with no data loss.
+The system is able to handle a high volume of incoming messages and provide real-time processing capabilities without any issues.
+Detail Steps:
+
+Define the source and target systems and the required message format.
+Set up Flink and MaxComputer environments and connect them using appropriate libraries and connectors.
+Define the SQL queries to be used for filtering incoming messages.
+Implement the Flink job to consume messages from the source system and filter them based on the SQL queries.
+Test the Flink job with sample messages and verify that the filtering is working as expected.
+Ensure that the filtered messages are delivered to the target system with no data loss.
+Conduct load testing to ensure that the system can handle the expected message load.
+Perform any necessary performance tuning to optimize the system's response time and throughput.
+Conduct any additional testing as necessary to ensure that the system meets the requirements of downstream users.
+Note: The Epic/Feature, Acceptance Criteria, and Detail Steps should be customized based on the specific requirements of the POC and the integration between Flink and MaxComputer.
+
+
