@@ -134,6 +134,16 @@ Update the table data in MaxComputer, then send the test data to Flink again and
 Test Flink's behavior when MaxComputer is unavailable, such as disconnecting or stopping MaxComputer.
 Confirm that the results of all test cases meet the expected outcomes, and that no errors or exceptions occur.
 
+Business Story:
+In the context of a large-scale streaming application, as a developer, I want to ensure high availability and fault tolerance for our Flink application, so that we can seamlessly handle Flink instance failures without any data loss.
+
+Use Case:
+To achieve high availability and fault tolerance for our Flink application, we want to implement a Flink Resilient POC that can run multiple Flink instances and ensure that if one instance goes down, the other instances can take over its tasks without losing any data. This will allow us to avoid any downtime or data loss, and provide a seamless experience for our users even in the event of instance failures.
+
+By implementing this POC, we can also verify the scalability and performance of our Flink application and ensure that it can handle large volumes of data in real-time without any issues.
+
+
+
 
 
 
