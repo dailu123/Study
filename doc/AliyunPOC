@@ -126,5 +126,14 @@ Implement a logging and monitoring system that provides adequate visibility into
 Test the system using a variety of test scenarios, including high volume message ingestion, large table sizes, and failure scenarios such as network outages and data format errors.
 Verify that the system meets the defined acceptance criteria, and document any issues or improvements needed for future iterations.
 
+Start MaxComputer and create the necessary tables to connect to.
+Start Flink and write a Flink job to connect to MaxComputer.
+Send test data to Flink using test data and verify that the messages are sent to the correct RocketMQ topic.
+Confirm that Flink correctly filters the data and sends the matching data to the correct RocketMQ topic.
+Update the table data in MaxComputer, then send the test data to Flink again and verify that Flink is able to correctly filter the data based on the updated table data.
+Test Flink's behavior when MaxComputer is unavailable, such as disconnecting or stopping MaxComputer.
+Confirm that the results of all test cases meet the expected outcomes, and that no errors or exceptions occur.
+
+
 
 
