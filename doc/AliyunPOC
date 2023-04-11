@@ -168,6 +168,12 @@ Configure the Flink client to communicate with the remote Flink cluster.
 Verify that the cross-region Flink cluster is working correctly by submitting and running a job.
 
 Start the Flink cluster with multiple job managers and task managers.
+
+
+Test the failover: manually kill one of the Flink Task Managers, and observe that the other Task Managers seamlessly take over the failed tasks and continue processing.
+Test the stateful stream processing: run a job with some stateful operators (e.g. window functions or stateful user-defined functions), then kill one of the Task Managers and verify that the state is correctly recovered and the processing continues uninterrupted.
+Test the rolling upgrade: upgrade the Flink version on one of the Task Managers, verify that it continues to work correctly and can still participate in the cluster without disruption.
+Test cross-region deployment: deploy the Flink cluster across multiple regions, run some jobs that involve cross-region data transfer, and verify that the performance and fault tolerance meet the requirements.
 Submit a job to the Flink cluster.
 Simulate a failure by killing one of the job managers or task managers.
 Observe that the Flink cluster detects the failure and automatically restarts the failed component.
