@@ -143,6 +143,31 @@ To achieve high availability and fault tolerance for our Flink application, we w
 By implementing this POC, we can also verify the scalability and performance of our Flink application and ensure that it can handle large volumes of data in real-time without any issues.
 
 
+Sure, here are the Acceptance Criteria for the Flink Resilient POC:
+
+Status: Pending
+
+Acceptance Criteria Details:
+
+The Flink cluster should be able to detect a failed job manager or task manager and automatically restart it.
+The state of the failed job manager or task manager should be restored to a new instance of the same job manager or task manager.
+The Flink cluster should be able to handle and recover from network partitions without data loss.
+The Flink cluster should be able to maintain a consistent state during a rolling upgrade.
+The Flink cluster should be able to handle job rescaling, including scaling up or down the number of task slots and the number of parallel instances of a task.
+The Flink cluster should be able to handle job migration between different clusters.
+Detail Steps:
+
+Start the Flink cluster with multiple job managers and task managers.
+Submit a job to the Flink cluster.
+Simulate a failure by killing one of the job managers or task managers.
+Observe that the Flink cluster detects the failure and automatically restarts the failed component.
+Verify that the state of the failed component is restored to the new instance.
+Simulate a network partition and verify that the Flink cluster can recover from it without data loss.
+Perform a rolling upgrade of the Flink cluster and verify that the state is maintained consistently throughout the upgrade.
+Scale up or down the number of task slots or parallel instances of a task and verify that the Flink cluster can handle the rescaling.
+Migrate a job between different clusters and verify that the Flink cluster can handle the job migration.
+
+
 
 
 
