@@ -188,3 +188,15 @@ Migrate a job between different clusters and verify that the Flink cluster can h
 
 
 
+
+graph TD
+    A[HUB] -- 实时数据 --> B[Pub/Sub]
+    A -- 定时数据 --> C[数据补发模块]
+    C -- 判断是否需要补发 --> D{需要补发吗?}
+    D -- 是 --> E[补发数据]
+    D -- 否 --> F[结束]
+    B -- 数据比对 --> G{数据是否缺失?}
+    G -- 是 --> H[缺失数据表]
+    G -- 否 --> I[结束]
+    H -- 记录缺失数据并标注状态 --> I
+
