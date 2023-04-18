@@ -191,6 +191,7 @@ hdfs dfs -du -h -s /path/to/directory/* | awk '{printf "%.2fGB\t%s\t%s\n", $1/10
 
 hdfs dfs -du -h -s /path/to/directory/* | awk '{gsub(/^.*\//, "", $(NF-1)); gsub("A", "", $NF); printf "%.2f GB\t%s\t%s\n", $1/(1024*1024), $(NF-1), $NF}' > output.txt
 
+hdfs dfs -du -h -s /path/to/directory/* | awk '{gsub(/^.*\//, "", $(NF-1)); gsub("A", "", $NF); sub(/.*\//, "", $NF); printf "%.2f GB\t%s\t%s\n", $1/(1024*1024), $(NF-1), $NF}' > output.txt
 
 
 graph TD
