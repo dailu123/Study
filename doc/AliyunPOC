@@ -223,3 +223,19 @@ As a result, we have decided to explore alternative methods for data extraction 
   - Minimal changes required to existing infrastructure. HUB only needs to replace the existing SFTP module with a call to the GCP Java package. Airflow only needs to add processing steps for loading files from GCS to BigQuery.
 - Disadvantages:
   - Increases Airflow workload, requiring better processing capabilities. It's recommended to set up an Airflow cluster that can automatically scale up or down based on workload.
+
+
+
+Overview:
+To use this option, we first copy the data from the HUB to a static library, and then use the GCP Java SDK to send each record as a JSON message to a Pub/Sub topic. We then use BigQuery subscriptions to directly push the messages to BigQuery as data.
+
+Advantages:
+
+Fastest option in terms of speed when resources are not a concern. Can transfer a table with 100,000 rows from HUB to BigQuery in 1 minute.
+Real-time data transfer and processing, which means data is available in BigQuery as soon as it arrives in Pub/Sub.
+Disadvantages:
+
+Requires significant changes to the current architecture, resulting in a longer development cycle.
+GCP costs may be higher compared to other options.
+Efficiency decreases with larger data volumes, requiring more resources to increase transfer speeds.
+Other disadvantages to be determined based on your specific requirements.
