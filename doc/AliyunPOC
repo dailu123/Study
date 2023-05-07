@@ -205,3 +205,13 @@ graph TD
     G -- 否 --> I[结束]
     H -- 记录缺失数据并标注状态 --> I
 
+
+
+Slide 2: Background on current data extraction process
+
+Our current data extraction process involves sending data from Hub to Juniper NAS, using Juniper to write the data into Google Cloud Storage, and writing the data from Storage to Bigquery.
+This process has been in place for [insert duration] and has provided us with valuable insights into our data.
+However, we have experienced delays in the data extraction process due to issues with Juniper.
+These delays have impacted our ability to quickly analyze and act upon the data, which is critical for our business operations.
+As a result, we have decided to explore alternative methods for data extraction in order to improve efficiency and reduce delays.
+
