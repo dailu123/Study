@@ -239,3 +239,16 @@ Requires significant changes to the current architecture, resulting in a longer 
 GCP costs may be higher compared to other options.
 Efficiency decreases with larger data volumes, requiring more resources to increase transfer speeds.
 Other disadvantages to be determined based on your specific requirements.
+
+
+
+Data from the HUB is first transferred to an SFTP server(an SFTP server can be deployed on Google Compute Engine (GCE) or an on-premises server,Deploying the SFTP server on GCE has the advantage of being able to leverage Google's infrastructure and network for data transfer, while deploying on-premises allows for more control over the server configuration and data security.), and then transferred to GCS. Finally, the data is loaded into BigQuery using Airflow.
+
+Advantages:
+
+Minimal changes required on the HUB side.
+Easy compatibility with Hadoop solutions, especially for on-premise servers.
+Disadvantages:
+
+Requires maintaining an additional SFTP server. If it is GCE-based, the maintenance workload will be smaller. If it is an on-premise server, then the installation of Airflow or other tools will be necessary to send files to GCS.
+Lower transmission efficiency due to the additional intermediate step.
