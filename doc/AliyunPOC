@@ -205,7 +205,7 @@ graph TD
     G -- 否 --> I[结束]
     H -- 记录缺失数据并标注状态 --> I
 
-
+我们总共有这几种方案: 1. HUB -> GCS -> BigQuery 2. HUb -> Pub/Sub -> BigQuery 3. HUB -> SFTP Server -> GCS -> BigQuery
 
 Slide 2: Background on current data extraction process
 
@@ -215,3 +215,11 @@ However, we have experienced delays in the data extraction process due to issues
 These delays have impacted our ability to quickly analyze and act upon the data, which is critical for our business operations.
 As a result, we have decided to explore alternative methods for data extraction in order to improve efficiency and reduce delays.
 
+## Option 1: HUB -> GCS -> BigQuery
+
+- Overview: Use GCP Java SDK to send CSV files directly from HUB to GCS, and then load files from GCS to BigQuery using Airflow.
+- Advantages:
+  - Direct transfer from HUB to GCP, saving time by eliminating intermediate transfer steps. Tests have shown that files as large as 5GB can be transferred to GCS within 5 minutes.
+  - Minimal changes required to existing infrastructure. HUB only needs to replace the existing SFTP module with a call to the GCP Java package. Airflow only needs to add processing steps for loading files from GCS to BigQuery.
+- Disadvantages:
+  - Increases Airflow workload, requiring better processing capabilities. It's recommended to set up an Airflow cluster that can automatically scale up or down based on workload.
