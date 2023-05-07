@@ -252,3 +252,9 @@ Disadvantages:
 
 Requires maintaining an additional SFTP server. If it is GCE-based, the maintenance workload will be smaller. If it is an on-premise server, then the installation of Airflow or other tools will be necessary to send files to GCS.
 Lower transmission efficiency due to the additional intermediate step.
+
+
+Option	Advantages	Disadvantages
+Option 1: HUB -> GCS -> BigQuery	Direct transfer from HUB to GCS saves transfer time. Minimal changes to HUB and Airflow.	Increase in Airflow workload requires improved processing capabilities.
+Option 2: HUB -> Pub/Sub -> BigQuery	Fastest speed in ideal conditions.	High GCP costs, and large datasets require more resources. Large changes to the current architecture required.
+Option 3: HUB -> SFTP Server -> GCS -> BigQuery	Minimal changes to HUB. Compatibility with Hadoop and on-premise servers.	Lower transfer efficiency due to an extra intermediate step. Additional maintenance for SFTP server.
