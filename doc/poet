@@ -1,0 +1,69 @@
+import com.google.cloud.bigquery.*;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+public class BigQueryUtils {
+    private static BigQuery bigquery;
+
+    private BigQueryUtils() {
+    }
+
+    public static BigQuery getBigQuery() {
+        if (bigquery == null) {
+            // 设置你的项目ID
+            String projectId = "your-project-id";
+
+            // 创建 BigQuery 客户端
+            bigquery = BigQueryOptions.newBuilder().setProjectId(projectId).build().getService();
+        }
+        return bigquery;
+    }
+
+    public static TableResult executeQueryFromFile(String sqlFilePath) throws IOException {
+        String sqlQuery = readSqlFromFile(sqlFilePath);
+
+        // 配置查询任务
+        QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(sqlQuery).build();
+
+        // 执行查询任务
+        return getBigQuery().query(queryConfig);
+    }
+
+    private static String readSqlFromFile(String sqlFilePath) throws IOException {
+        Path path = Paths.get(sqlFilePath);
+        byte[] bytes = Files.readAllBytes(path);
+        return new String(bytes);
+    }
+}
+
+
+import com.google.cloud.bigquery.FieldValueList;
+
+@FunctionalInterface
+public interface QueryResultHandler {
+    void handleResult(FieldValueList row);
+}
+
+
+
+public class Main {
+    public static void main(String[] args) {
+        String sqlFilePath = "path/to/query.sql"; // 替换为你的查询文件路径
+
+        QueryResultHandler resultHandler = row -> {
+            // 自定义处理逻辑
+            // 在这里可以访问每一行的字段值，并进行自定义处理
+            // 例如，打印每一行的第一个字段的值
+            System.out.println("Value: " + row.get(0).getValue());
+        };
+
+        try {
+            BigQueryUtils.executeQueryFromFile(sqlFilePath, resultHandler);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
