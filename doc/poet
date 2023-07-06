@@ -67,3 +67,55 @@ public class Main {
         }
     }
 }
+
+
+
+--------
+
+import org.apache.http.HttpHost;
+import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.springframework.http.HttpRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.client.*;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import java.io.IOException;
+import java.net.URI;
+
+@Component
+public class ConditionalProxyInterceptor implements ClientHttpRequestInterceptor {
+    private final String proxyHost;
+    private final int proxyPort;
+    private final String targetHost;
+
+    public ConditionalProxyInterceptor(String proxyHost, int proxyPort, String targetHost) {
+        this.proxyHost = proxyHost;
+        this.proxyPort = proxyPort;
+        this.targetHost = targetHost;
+    }
+
+    @Override
+    public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+        // Determine if the request target is a Google service
+        URI uri = request.getURI();
+        boolean isGoogleService = StringUtils.startsWithIgnoreCase(uri.getHost(), targetHost);
+
+        // Apply proxy settings conditionally
+        if (isGoogleService) {
+            // Create HttpClient and set the proxy
+            HttpHost proxy = new HttpHost(proxyHost, proxyPort);
+            HttpClient httpClient = HttpClients.custom().setProxy(proxy).build();
+
+            // Create HttpComponentsClientHttpRequestFactory with the custom HttpClient
+            HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
+
+            // Execute the request using the custom HttpComponentsClientHttpRequestFactory
+            return new InterceptingClientHttpRequest(requestFactory, execution).execute(request, body);
+        } else {
+            // No proxy needed, execute the request directly
+            return execution.execute(request, body);
+        }
+    }
+}
