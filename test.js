@@ -34,3 +34,10 @@ $firstLine = Get-Content $filePath | Select-Object -First 1
 
 # 输出第一行内容
 Write-Host "文件 $filePath 的第一行内容为: $firstLine"
+
+
+SELECT 
+  EXTRACT(EPOCH FROM (timestamp2 - timestamp1)) * 1000 AS milliseconds_diff
+FROM 
+  your_table;
+
