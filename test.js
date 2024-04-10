@@ -41,3 +41,14 @@ SELECT
 FROM 
   your_table;
 
+
+SELECT
+    SUM(CASE WHEN your_column < 100 THEN 1 ELSE 0 END) AS count_less_than_100,
+    SUM(CASE WHEN your_column >= 100 AND your_column < 500 THEN 1 ELSE 0 END) AS count_100_to_499,
+    SUM(CASE WHEN your_column >= 500 AND your_column < 1000 THEN 1 ELSE 0 END) AS count_500_to_999,
+    SUM(CASE WHEN your_column >= 1000 AND your_column < 2000 THEN 1 ELSE 0 END) AS count_1000_to_1999,
+    SUM(CASE WHEN your_column >= 2000 AND your_column < 3000 THEN 1 ELSE 0 END) AS count_2000_to_2999,
+    SUM(CASE WHEN your_column >= 3000 THEN 1 ELSE 0 END) AS count_greater_than_2999
+FROM
+    your_table;
+
