@@ -24,3 +24,13 @@ Set-Content -Path "output.txt" -Value $newFirstLine -Encoding UTF8
 
 # 追加其他文件的内容到新文件中
 Get-Content $files | Add-Content -Path "output.txt" -Encoding UTF8
+
+
+# 文件路径
+$filePath = "file.txt"  # 替换为你要读取的文件路径
+
+# 使用 Get-Content 命令读取文件的第一行，并通过管道传递给 Select-Object 命令选择第一行
+$firstLine = Get-Content $filePath | Select-Object -First 1
+
+# 输出第一行内容
+Write-Host "文件 $filePath 的第一行内容为: $firstLine"
