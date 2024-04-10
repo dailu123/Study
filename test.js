@@ -52,3 +52,16 @@ SELECT
 FROM
     your_table;
 
+SELECT 'count_less_than_100' AS range, COUNT(*) AS count FROM your_table WHERE your_column < 100
+UNION ALL
+SELECT 'count_100_to_499', COUNT(*) FROM your_table WHERE your_column >= 100 AND your_column < 500
+UNION ALL
+SELECT 'count_500_to_999', COUNT(*) FROM your_table WHERE your_column >= 500 AND your_column < 1000
+UNION ALL
+SELECT 'count_1000_to_1999', COUNT(*) FROM your_table WHERE your_column >= 1000 AND your_column < 2000
+UNION ALL
+SELECT 'count_2000_to_2999', COUNT(*) FROM your_table WHERE your_column >= 2000 AND your_column < 3000
+UNION ALL
+SELECT 'count_greater_than_2999', COUNT(*) FROM your_table WHERE your_column >= 3000;
+
+
