@@ -65,3 +65,7 @@ UNION ALL
 SELECT 'count_greater_than_2999', COUNT(*) FROM your_table WHERE your_column >= 3000;
 
 
+mqadmin queryTopicByTopic -n <nameserver-address> -t <topic-name> > /path/to/log-file.log
+
+
+
