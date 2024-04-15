@@ -77,6 +77,9 @@ for /f "tokens=*" %%a in (input.txt) do (
     echo !line! >> output.txt
 )
 
+$originalString = "Hello, world!"
+$newString = $originalString -replace "world", "PowerShell"
+Write-Host $newString  # 输出 "Hello, PowerShell!"
 
 
 
