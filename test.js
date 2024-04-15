@@ -67,5 +67,16 @@ SELECT 'count_greater_than_2999', COUNT(*) FROM your_table WHERE your_column >= 
 
 mqadmin queryTopicByTopic -n <nameserver-address> -t <topic-name> > /path/to/log-file.log
 
+@echo off
+setlocal enabledelayedexpansion
+set "search=world"
+set "replace=PowerShell"
+for /f "tokens=*" %%a in (input.txt) do (
+    set "line=%%a"
+    set "line=!line:%search%=%replace%!"
+    echo !line! >> output.txt
+)
+
+
 
 
