@@ -155,6 +155,10 @@ find "$DIRECTORY" -type f | while read -r file; do
     # 更新当前大文件的大小
     current_file_size=$((current_file_size + file_size))
 done
-
+echo "Processed file: $file"
+    echo "File size: $file_size bytes"
+    echo "Current large file: $output_file"
+    echo "Current large file size: $current_file_size bytes"
+    echo "--------------------------------------"
 
 
