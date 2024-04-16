@@ -120,4 +120,41 @@ find "$DIRECTORY" -type f | while read -r file; do
 done
 
 
+  #!/bin/bash
+
+# 设置文件大小限制（单位：字节）
+# 900MB = 900 * 1024 * 1024 字节
+SIZE_LIMIT=$((900 * 1024 * 1024))
+
+# 指定文件夹路径
+DIRECTORY="your_folder_path"
+
+# 初始化当前文件大小和文件计数
+current_file_size=0
+file_count=1
+
+# 初始化当前大文件的名称
+output_file="large_file_${file_count}.txt"
+
+# 遍历指定目录中的所有文件
+find "$DIRECTORY" -type f | while read -r file; do
+    # 获取当前文件的大小
+    file_size=$(stat -c %s "$file")
+
+    # 检查添加当前文件后是否会超过大小限制
+    if ((current_file_size + file_size > SIZE_LIMIT)); then
+        # 创建一个新的大文件
+        file_count=$((file_count + 1))
+        output_file="large_file_${file_count}.txt"
+        current_file_size=0
+    fi
+
+    # 使用 sed 将当前小文件中的 '#' 替换为 '*'
+    sed 's/#/*/g' "$file" >> "$output_file"
+
+    # 更新当前大文件的大小
+    current_file_size=$((current_file_size + file_size))
+done
+
+
 
