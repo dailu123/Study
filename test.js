@@ -160,5 +160,9 @@ echo "Processed file: $file"
     echo "Current large file: $output_file"
     echo "Current large file size: $current_file_size bytes"
     echo "--------------------------------------"
+<dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
 
 
