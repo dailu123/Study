@@ -204,3 +204,65 @@ public class DataService {
     }
 }
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Service;
+
+import java.util.concurrent.atomic.AtomicLong;
+
+@Service
+public class QueryService {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ThreadPoolTaskExecutor taskExecutor;
+
+    // Total interval for segmentation in milliseconds (e.g., 1 minute).
+    private final long totalInterval = 60000; // 1 minute
+
+    // Time interval for each thread to query in milliseconds (e.g., 1 second).
+    private final long threadInterval = 1000; // 1 second
+
+    // Atomic variable to track the latest timestamp for querying.
+    private final AtomicLong currentTimestamp = new AtomicLong(System.currentTimeMillis());
+
+    // Starts the querying tasks in a loop.
+    public void startQuerying() {
+        while (true) {
+            long startTime = currentTimestamp.get();
+            long endTime = startTime + totalInterval;
+
+            // Query in segments.
+            for (long time = startTime; time < endTime; time += threadInterval) {
+                long finalTime = time;
+                taskExecutor.submit(() -> queryData(finalTime, finalTime + threadInterval));
+            }
+
+            // Update the latest timestamp.
+            currentTimestamp.addAndGet(totalInterval);
+
+            // Sleep interval for querying tasks (e.g., 5 seconds).
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    // Executes the query for a specific time interval.
+    private void queryData(long startTime, long endTime) {
+        // Your query logic using startTime and endTime as parameters.
+        String query = "SELECT * FROM my_table WHERE timestamp >= ? AND timestamp < ?";
+        jdbcTemplate.query(query, new Object[]{startTime, endTime}, (rs, rowNum) -> {
+            // Process the query result.
+            System.out.println("Processing data with timestamp between " + startTime + " and " + endTime);
+            return null;
+        });
+    }
+}
+
+
