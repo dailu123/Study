@@ -265,4 +265,11 @@ public class QueryService {
     }
 }
 
+ // Construct the IN clause with placeholders (e.g., (?, ?, ?))
+        String inClause = String.join(", ", parameters.stream().map(param -> "?").toArray(String[]::new));
+
+        // Construct the SQL query
+        String sql = "SELECT * FROM my_table WHERE my_column IN (" + inClause + ")";
+
+
 
