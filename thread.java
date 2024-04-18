@@ -165,3 +165,42 @@ spring.datasource.hikari.minimum-idle=5
 spring.datasource.hikari.connection-timeout=30000
 spring.datasource.hikari.idle-timeout=600000
 spring.datasource.hikari.max-lifetime=1800000
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
+import java.util.List;
+
+@Service
+public class DataService {
+
+    // Inject the list of query parameters from the configuration file
+    @Value("${app.query-parameters}")
+    private String queryParameters;
+
+    // Convert the comma-separated string to a list of strings
+    private List<String> paramList;
+
+    // Initialize the list of parameters
+    public void init() {
+        paramList = Arrays.asList(queryParameters.split(","));
+    }
+
+    public List<String> getParamList() {
+        return paramList;
+    }
+
+    // Example usage of the parameter list
+    public void processData() {
+        // You can use paramList for querying data or other operations
+        for (String param : paramList) {
+            // Execute SQL query or perform other operations
+            executeQuery(param);
+        }
+    }
+
+    private void executeQuery(String param) {
+        // Implement your query execution logic here
+    }
+}
+
