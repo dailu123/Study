@@ -108,3 +108,60 @@ public class DataProcessingController {
         return Collections.emptyList(); // Replace with actual logic
     }
 }
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class DataProcessingService {
+
+    @Autowired
+    private ThreadPoolTaskExecutor taskExecutor;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public void processData(List<Data> dataList) {
+        // Split data into subsets for concurrent processing
+        List<List<Data>> dataSubsets = splitDataIntoSubsets(dataList);
+
+        // Submit tasks for concurrent execution
+        for (List<Data> dataSubset : dataSubsets) {
+            taskExecutor.submit(() -> processSubset(dataSubset));
+        }
+    }
+
+    private void processSubset(List<Data> dataSubset) {
+        // Process each data item in the subset
+        for (Data data : dataSubset) {
+            // Query data using JdbcTemplate
+            // JdbcTemplate will automatically use the connection pool
+            String query = "SELECT * FROM my_table WHERE data_id = ?";
+            Data result = jdbcTemplate.queryForObject(query, new Object[]{data.getId()}, Data.class);
+            
+            // Process the result or perform other operations
+            processResult(result);
+        }
+    }
+
+    private void processResult(Data result) {
+        // Implement your data processing logic here
+    }
+
+    private List<List<Data>> splitDataIntoSubsets(List<Data> dataList) {
+        // Implement logic to split data into subsets for concurrent processing
+        return Collections.emptyList(); // Replace with actual logic
+    }
+}
+
+
+# HikariCP connection pool settings
+spring.datasource.hikari.maximum-pool-size=10
+spring.datasource.hikari.minimum-idle=5
+spring.datasource.hikari.connection-timeout=30000
+spring.datasource.hikari.idle-timeout=600000
+spring.datasource.hikari.max-lifetime=1800000
