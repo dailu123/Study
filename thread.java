@@ -1,3 +1,18 @@
+#!/bin/bash
+
+# 配置参数
+namesrv="localhost:9876"  # NameServer 的地址
+topic="TopicTest"         # 要发送消息的主题名称
+msg_body="Hello World!"   # 消息内容
+msg_tag="TagA"            # 消息标签
+
+# 循环发送消息
+for ((i=1; i<=10000; i++)); do
+    sh mqadmin.sh sendMsg -n "$namesrv" -t "$topic" -p "$msg_body" -b "$msg_tag"
+    echo "Sent message $i"
+done
+
+
 # Configure thread pool parameters
 app.thread-pool.core-pool-size=5
 app.thread-pool.max-pool-size=10
