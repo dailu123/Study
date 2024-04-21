@@ -1,0 +1,26 @@
+@Configuration
+public class DataSourceConfig {
+
+    @Primary
+    @Bean(name = "oceanbaseDataSource")
+    @ConfigurationProperties(prefix = "spring.datasource.oceanbase")
+    public DataSource oceanbaseDataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
+    @Bean(name = "pgDataSource")
+    @ConfigurationProperties(prefix = "spring.datasource.pg")
+    public DataSource pgDataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
+    @Bean(name = "oceanbaseJdbcTemplate")
+    public JdbcTemplate oceanbaseJdbcTemplate(@Qualifier("oceanbaseDataSource") DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+
+    @Bean(name = "pgJdbcTemplate")
+    public JdbcTemplate pgJdbcTemplate(@Qualifier("pgDataSource") DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+}
