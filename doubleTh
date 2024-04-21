@@ -1,0 +1,60 @@
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+@Configuration
+public class ThreadPoolConfig {
+
+    @Bean(name = "queryThreadPool")
+    @ConfigurationProperties(prefix = "threadpool.query")
+    public ThreadPoolTaskExecutor queryThreadPool() {
+        return new ThreadPoolTaskExecutor();
+    }
+
+    @Bean(name = "writeThreadPool")
+    @ConfigurationProperties(prefix = "threadpool.write")
+    public ThreadPoolTaskExecutor writeThreadPool() {
+        return new ThreadPoolTaskExecutor();
+    }
+}
+
+
+threadpool.query.corePoolSize=10
+threadpool.query.maxPoolSize=20
+threadpool.query.queueCapacity=100
+threadpool.query.threadNamePrefix=QueryThread-
+
+threadpool.write.corePoolSize=10
+threadpool.write.maxPoolSize=20
+threadpool.write.queueCapacity=100
+threadpool.write.threadNamePrefix=WriteThread-
+
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+@Service
+public class DataSyncService {
+
+    @Autowired
+    @Qualifier("queryThreadPool")
+    private ThreadPoolTaskExecutor queryThreadPool;
+
+    @Autowired
+    @Qualifier("writeThreadPool")
+    private ThreadPoolTaskExecutor writeThreadPool;
+
+    @Async("queryThreadPool")
+    public void queryDataFromA() {
+        // Query data from database A
+        // Your logic here
+    }
+
+    @Async("writeThreadPool")
+    public void writeToB() {
+        // Write data to database B
+        // Your logic here
+    }
+}
