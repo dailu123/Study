@@ -1,3 +1,10 @@
+   row.forEach((key, value) -> {
+                    if (value instanceof String) {
+                        String processedValue = ((String) value).replace("old", "new"); // 替换字符串中的 "old" 为 "new"
+                        row.put(key, processedValue);
+                    }
+                });
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
