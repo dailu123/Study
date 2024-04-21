@@ -58,3 +58,66 @@ public class DataSyncService {
         // Your logic here
     }
 }
+
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import java.util.Map;
+
+public class WriteTask implements Runnable {
+    private JdbcTemplate jdbcTemplate;
+    private String sql;
+    private Map<String, Object> parameters;
+
+    public WriteTask(JdbcTemplate jdbcTemplate, String sql, Map<String, Object> parameters) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.sql = sql;
+        this.parameters = parameters;
+    }
+
+    @Override
+    public void run() {
+        jdbcTemplate.update(sql, parameters.values().toArray());
+    }
+}
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Service;
+import java.util.Map;
+
+@Service
+public class DataSyncService {
+
+    @Autowired
+    @Qualifier("pgsqlJdbcTemplate")
+    private JdbcTemplate pgsqlJdbcTemplate;
+
+    @Autowired
+    @Qualifier("writeThreadPool")
+    private ThreadPoolTaskExecutor writeThreadPool;
+
+    public void writeToPostgreSQL(Map<String, Object> row, String tableName) {
+        String sql = generateInsertSQL(tableName, row);
+        Runnable writeTask = new WriteTask(pgsqlJdbcTemplate, sql, row);
+        writeThreadPool.submit(writeTask);
+    }
+
+    private String generateInsertSQL(String tableName, Map<String, Object> row) {
+        StringBuilder sqlBuilder = new StringBuilder();
+        sqlBuilder.append("INSERT INTO ").append(tableName).append(" (");
+        for (String column : row.keySet()) {
+            sqlBuilder.append(column).append(", ");
+        }
+        sqlBuilder.setLength(sqlBuilder.length() - 2); // Remove the last comma and space
+        sqlBuilder.append(") VALUES (");
+        for (int i = 0; i < row.size(); i++) {
+            sqlBuilder.append("?, ");
+        }
+        sqlBuilder.setLength(sqlBuilder.length() - 2); // Remove the last comma and space
+        sqlBuilder.append(")");
+        return sqlBuilder.toString();
+    }
+}
+
+
