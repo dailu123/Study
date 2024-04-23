@@ -5,6 +5,31 @@ import java.util.Base64;
 
 public class AES256Demo {
 
+
+    import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+public class SecretKeyExample {
+
+    public static void main(String[] args) {
+        String secretKeyString = "your-secret-key"; // String representation of the key
+
+        // Decode the string key into a byte array
+        byte[] decodedKey = Base64.getDecoder().decode(secretKeyString);
+
+        // Create a SecretKeySpec object
+        SecretKey secretKey = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
+
+        // Use the SecretKey object
+        // For example, pass the SecretKey object to encryption or decryption methods
+        // encrypt(secretKey, plainText);
+        // decrypt(secretKey, encryptedText);
+    }
+}
+
+    
     private static final String AES_ALGORITHM = "AES";
     private static final String SECRET_KEY = "your-secret-key"; // 密钥长度必须是 256 位
 
