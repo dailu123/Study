@@ -151,4 +151,37 @@ management:
     web:
       exposure:
         include: "*"
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
+import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Component;
+
+@Component
+@Endpoint(id = "thread-pool")
+public class ThreadPoolEndpoint {
+
+    private final ThreadPoolTaskExecutor threadPoolTaskExecutor;
+    private final Logger logger = LoggerFactory.getLogger(ThreadPoolEndpoint.class);
+
+    @Autowired
+    public ThreadPoolEndpoint(ThreadPoolTaskExecutor threadPoolTaskExecutor) {
+        this.threadPoolTaskExecutor = threadPoolTaskExecutor;
+    }
+
+    @ReadOperation
+    public void logThreadPoolInfo() {
+        logger.info("Thread Pool Information:");
+        logger.info("Current Pool Size: {}", threadPoolTaskExecutor.getPoolSize());
+        logger.info("Active Count: {}", threadPoolTaskExecutor.getActiveCount());
+        logger.info("Core Pool Size: {}", threadPoolTaskExecutor.getCorePoolSize());
+        logger.info("Maximum Pool Size: {}", threadPoolTaskExecutor.getMaxPoolSize());
+        logger.info("Largest Pool Size: {}", threadPoolTaskExecutor.getLargestPoolSize());
+        logger.info("Task Count: {}", threadPoolTaskExecutor.getThreadPoolExecutor().getTaskCount());
+        logger.info("Completed Task Count: {}", threadPoolTaskExecutor.getThreadPoolExecutor().getCompletedTaskCount());
+        logger.info("Queue Size: {}", threadPoolTaskExecutor.getThreadPoolExecutor().getQueue().size());
+    }
+}
 
