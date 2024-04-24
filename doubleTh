@@ -1,4 +1,39 @@
-   row.forEach((key, value) -> {
+#!/bin/bash
+
+# 配置 ossutil 路径，根据实际情况修改
+ossutil_path="/path/to/ossutil"
+
+# 配置 OSS 存储桶名称，根据实际情况修改
+bucket_name="your_bucket_name"
+
+# 本地文件夹路径，根据实际情况修改
+local_folder="/path/to/local_folder"
+
+# 上传文件夹函数
+upload_folder() {
+    local local_folder="$1"
+    local oss_folder="$2"
+
+    # 在 OSS 中创建对应的文件夹
+    $ossutil_path mkdir "oss://$bucket_name/$oss_folder"
+
+    # 递归上传文件夹中的文件
+    $ossutil_path cp -r "$local_folder"/* "oss://$bucket_name/$oss_folder/"
+}
+
+# 遍历本地文件夹
+for dir in "$local_folder"/*; do
+    # 检查是否为文件夹
+    if [ -d "$dir" ]; then
+        # 提取文件夹名称
+        folder_name=$(basename "$dir")
+        # 调用上传函数
+        upload_folder "$dir" "$folder_name"
+    fi
+done
+
+
+row.forEach((key, value) -> {
                     if (value instanceof String) {
                         String processedValue = ((String) value).replace("old", "new"); // 替换字符串中的 "old" 为 "new"
                         row.put(key, processedValue);
