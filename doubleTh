@@ -1,3 +1,14 @@
+To create a recovery plan for applications deployed on Alibaba Cloud ACK (Alibaba Cloud Container Service for Kubernetes), you can follow these general steps:
+
+Using PodDisruptionBudget (PDB):PodDisruptionBudget is a mechanism provided by Kubernetes to limit the number of disruptions to Pods during node maintenance, upgrades, or failures. You can create a PodDisruptionBudget object to ensure that at least a specified number of replicas are retained during maintenance or failures. This prevents complete application downtime during maintenance or failures.
+Using Deployment's ReplicaSet and Replicas:Use Kubernetes Deployment controller to manage your application deployments. By setting the replicas property of Deployment, you can specify the number of Pod replicas that should be running in the cluster. If Pods on a node terminate abnormally, Kubernetes automatically starts new Pod replicas to replace them, ensuring the specified number of replicas in the Deployment.
+Using Health Checks and Restart Policies:Set up health checks and restart policies within containers to ensure automatic restarts in case of failures. By setting the livenessProbe and readinessProbe properties of containers, you can specify the health check mechanisms for containers and adjust restart policies as needed.
+Using Container Monitoring and Auto Remediation Tools:ACK provides container monitoring and auto-remediation tools such as CloudMonitor and Auto Scaling. You can use these tools to monitor the running status of containers and automatically trigger recovery actions when anomalies are detected, such as automatic Pod restarts or node replacement in case of failures.
+Backup and Restore Policies:Establish backup and restore policies for your applications to ensure quick recovery of data and application states in the event of disasters. You can use Alibaba Cloud's features such as cloud disk snapshots, container image backups, etc., to implement backup and restore mechanisms.
+By following these methods, you can create effective recovery plans on Alibaba Cloud ACK to ensure that your applications can quickly recover from failures or abnormal situations, ensuring business continuity and reliability.
+
+
+
 #!/bin/bash
 
 # 配置 ossutil 路径，根据实际情况修改
