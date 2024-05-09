@@ -1,3 +1,24 @@
+NameServer:
+Component Description: NameServer is responsible for maintaining the routing information of all the message queues in the RocketMQ cluster. It acts as a lookup service that helps clients discover the appropriate broker for producing or consuming messages.
+Critical Journeys/Services Impacted if Unavailable: If NameServer is unavailable, clients will not be able to discover the brokers, leading to failures in producing or consuming messages.
+Auto Recovery Mechanisms: NameServer instances can be deployed redundantly to ensure high availability. If a NameServer instance fails, clients can still connect to other available NameServer instances.
+Broker:
+Component Description: Broker is the core component of RocketMQ, responsible for storing and managing messages, as well as handling message replication and synchronization.
+Critical Journeys/Services Impacted if Unavailable: If a Broker is unavailable, message processing and delivery will be disrupted, impacting real-time data processing and analytics, event-driven microservices architecture, and asynchronous message processing.
+Auto Recovery Mechanisms: Brokers can be deployed redundantly across multiple nodes and data centers. RocketMQ supports message replication and synchronization to ensure data durability and fault tolerance. If a Broker fails, messages can be redirected to healthy Brokers for processing.
+Producer:
+Component Description: Producer is responsible for producing and sending messages to RocketMQ brokers.
+Critical Journeys/Services Impacted if Unavailable: If the Producer component is unavailable, applications will not be able to send messages to RocketMQ, leading to potential data loss or processing delays.
+Auto Recovery Mechanisms: Producers can be deployed redundantly, and RocketMQ supports dynamic load balancing of messages across multiple brokers. If one Producer fails, messages can be sent through other available Producers.
+Consumer:
+Component Description: Consumer is responsible for consuming messages from RocketMQ brokers and processing them according to application logic.
+Critical Journeys/Services Impacted if Unavailable: If the Consumer component is unavailable, applications will not be able to receive and process messages from RocketMQ, potentially causing data processing delays or service disruptions.
+Auto Recovery Mechanisms: Consumers can be deployed redundantly, and RocketMQ supports dynamic load balancing of messages across multiple consumers. If one Consumer fails, messages can be consumed by other available Consumers.
+Admin Tool:
+Component Description: Admin Tool provides administrative and monitoring capabilities for managing and monitoring the RocketMQ cluster.
+Critical Journeys/Services Impacted if Unavailable: If the Admin Tool is unavailable, administrators may have difficulty managing and monitoring the RocketMQ cluster, impacting overall cluster management and maintenance.
+Auto Recovery Mechanisms: Admin Tool instances can be deployed redundantly, and RocketMQ provides monitoring metrics and alerts to help administrators detect and respond to issues promptly.
+
 #!/bin/bash
 
 # 配置参数
