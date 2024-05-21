@@ -1,0 +1,94 @@
+Step 1: Set Up Service Account and Permissions
+Create a Service Account:
+
+Navigate to IAM & Admin > Service Accounts in the GCP Console.
+Create a new service account and assign it the role Pub/Sub Subscriber.
+Generate a Key File:
+
+On the service accounts page, create a new key for your service account and download it as a JSON file.
+Step 2: Configure Your Local Development Environment
+Install Java SDK: Ensure that you have the Java SDK installed (the latest LTS version is recommended).
+
+Set Environment Variable: Set the path to the JSON key file as an environment variable.
+
+sh
+复制代码
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account-file.json"
+Step 3: Add Dependencies
+In your Java project, add the Google Cloud Pub/Sub dependency using either Maven or Gradle.
+
+Maven:
+
+xml
+复制代码
+<dependency>
+    <groupId>com.google.cloud</groupId>
+    <artifactId>google-cloud-pubsub</artifactId>
+    <version>1.113.7</version>
+</dependency>
+Gradle:
+
+gradle
+复制代码
+implementation 'com.google.cloud:google-cloud-pubsub:1.113.7'
+Step 4: Write Java Code to Consume Messages
+Here is a complete Java example showing how to consume messages from a Pub/Sub subscription:
+
+java
+复制代码
+import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.pubsub.v1.AckReplyConsumer;
+import com.google.cloud.pubsub.v1.Subscriber;
+import com.google.pubsub.v1.ProjectSubscriptionName;
+import com.google.pubsub.v1.PubsubMessage;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+
+public class PubSubConsumer {
+
+    public static void main(String... args) throws Exception {
+        // GCP project ID
+        String projectId = "your-gcp-project-id";
+        // Subscription ID
+        String subscriptionId = "your-subscription-id";
+        // Create a subscription name object
+        ProjectSubscriptionName subscriptionName = ProjectSubscriptionName.of(projectId, subscriptionId);
+
+        // Load service account credentials
+        GoogleCredentials credentials;
+        try (FileInputStream serviceAccountStream = new FileInputStream("path/to/your/service-account-file.json")) {
+            credentials = GoogleCredentials.fromStream(serviceAccountStream);
+        }
+
+        // Create a subscriber
+        Subscriber subscriber = null;
+        try {
+            // Build the subscriber and define the message receiver
+            subscriber = Subscriber.newBuilder(subscriptionName, (PubsubMessage message, AckReplyConsumer consumer) -> {
+                // Handle the received message
+                System.out.println("Message ID: " + message.getMessageId());
+                System.out.println("Data: " + message.getData().toStringUtf8());
+                // Acknowledge the message
+                consumer.ack();
+            }).setCredentialsProvider(FixedCredentialsProvider.create(credentials)).build();
+
+            // Start the subscriber
+            subscriber.startAsync().awaitRunning();
+            System.out.printf("Listening for messages on %s:\n", subscriptionName.toString());
+
+            // Keep the subscriber running for a while to receive messages
+            Thread.sleep(60000);
+        } finally {
+            // Stop the subscriber
+            if (subscriber != null) {
+                subscriber.stopAsync();
+            }
+        }
+    }
+}
+Notes
+Replace "your-gcp-project-id" with your actual GCP project ID.
+Replace "your-subscription-id" with your Pub/Sub subscription ID.
+Replace "path/to/your/service-account-file.json" with the path to your service account JSON key file.
