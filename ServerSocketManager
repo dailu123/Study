@@ -1,0 +1,47 @@
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+
+public class ServerSocketManager implements AutoCloseable {
+
+    private ServerSocket server;
+
+    public ServerSocketManager(int port) throws IOException {
+        server = new ServerSocket();
+        InetSocketAddress address = new InetSocketAddress(port);
+        server.setReceiveBufferSize(64 * 1024);
+        server.bind(address, 1024);
+
+        // 添加关闭钩子以确保在程序退出时关闭ServerSocket
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                this.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }));
+    }
+
+    public ServerSocket getServerSocket() {
+        return server;
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (server != null && !server.isClosed()) {
+            server.close();
+        }
+    }
+
+    public static void main(String[] args) {
+        try (ServerSocketManager manager = new ServerSocketManager(8080)) {
+            ServerSocket server = manager.getServerSocket();
+            // 在这里处理连接请求
+            while (true) {
+                // 例如：Socket client = server.accept();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
