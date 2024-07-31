@@ -1,3 +1,49 @@
+Event Consumers Architecture Overview
+The Event Consumers are responsible for processing events received from the RocketMQ clusters. This component includes several key modules: Event Reception Module, Event Deduplication Module, Event Processing Module, and Reconciliation Module. Below is an overview of each module's function and their interaction within the system.
+
+Modules Overview:
+Event Reception Module:
+
+Function: This module establishes connections with all three clusters (primary and backups) to receive messages.
+Control Event Handling: Each control event is broadcasted to all clusters. This ensures redundancy and also serves as a heartbeat mechanism for backup clusters. If a consumer does not receive control events from a particular cluster for a specified period (beyond the expected interval), an alert is triggered.
+Event Deduplication Module:
+
+Function: Handles the deduplication of events. RocketMQ ensures at least once delivery, which may result in duplicate messages. This module uses a unique event identifier to perform idempotent processing, ensuring that each event is processed only once.
+Event Processing Module:
+
+Function: This is where the actual business logic is executed. Messages that pass through the deduplication process are categorized based on type:
+Business Messages: Processed according to the business logic defined for these messages.
+Control Events: Processed separately to manage and monitor the system's health and message flow.
+Reconciliation Module:
+
+Function: Works closely with the Event Processing Module, especially for control events. It ensures data integrity by comparing received control events with expected business event IDs. If any expected events are missing or there are discrepancies, the module triggers appropriate reconciliation actions.
+Detailed Module Interaction and Flow
+Message Reception:
+
+Messages are received concurrently from all connected clusters by the Event Reception Module.
+Control events act as both operational commands and heartbeat signals for monitoring cluster health.
+Deduplication Process:
+
+Upon receipt, messages are passed to the Event Deduplication Module, where they are checked against a stored list of processed event IDs.
+Only unique events are forwarded for further processing.
+Event Processing and Classification:
+
+The deduplicated messages are categorized:
+Business Messages: These are forwarded to business-specific processing units.
+Control Events: Sent to both control-specific units and the Reconciliation Module.
+Reconciliation and Alerting:
+
+The Reconciliation Module uses control events to verify the completeness of the business messages received during a specific time interval.
+If discrepancies are found (e.g., missing events), the module logs these and triggers alerts as necessary.
+This architecture ensures robust and efficient handling of messages, with a focus on reliability and fault tolerance, particularly important in a multi-cluster environment. The combination of deduplication, processing, and reconciliation processes helps maintain data integrity and operational continuity.
+
+
+
+
+
+
+
+
 2. Event Bridge
 The Event Bridge serves as an intermediary that channels messages from the Event Adapter to the consumers. It ensures that the messages are routed according to the system's routing logic and failover strategies.
 
