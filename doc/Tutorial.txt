@@ -218,3 +218,64 @@ Alert Notifications (Recipients)	ops-team@example.com
 Control Event Frequency (Minutes)	30
 Data Encryption Enabled	true
 Encryption Algorithm	AES-256
+
+
+primary_cluster:
+  name: "AlibabaCloud_RocketMQ_Cluster1"
+  nameservers: "nameserver1.aliyun.com:9876,nameserver2.aliyun.com:9876"
+backup_clusters:
+  - name: "Local_Apache_RocketMQ_Cluster1"
+    nameservers: "nameserver1.local:9876,nameserver2.local:9876"
+  - name: "Local_Apache_RocketMQ_Cluster2"
+    nameservers: "nameserver1.local:9876,nameserver2.local:9876"
+routing_strategy: "triple_cluster"
+failover_condition:
+  consecutive_failures: 3
+retry_interval_minutes: 5
+weighted_routing:
+  AlibabaCloud_RocketMQ_Cluster1: 50
+  Local_Apache_RocketMQ_Cluster1: 30
+  Local_Apache_RocketMQ_Cluster2: 20
+health_check_interval_minutes: 2
+alert_notifications:
+  recipients:
+    - "ops-team@example.com"
+data_encryption:
+  enabled: true
+  algorithm: "AES-256"
+topic_routing:
+  - topic_name: "OrderProcessing"
+    routing_strategy: "primary_cluster_only"
+    control_event_frequency_minutes: 15
+  - topic_name: "InventoryUpdate"
+    routing_strategy: "dual_cluster"
+    clusters:
+      - "AlibabaCloud_RocketMQ_Cluster1"
+      - "Local_Apache_RocketMQ_Cluster1"
+    control_event_frequency_minutes: 10
+  - topic_name: "UserActivity"
+    routing_strategy: "triple_cluster"
+    control_event_frequency_minutes: 20
+
+Explanation of Configuration Parameters
+Parameter	Description
+primary_cluster.name	The name of the primary cluster used for message routing.
+primary_cluster.nameservers	The addresses of the nameservers for the primary cluster.
+backup_clusters	List of backup clusters with their names and nameserver addresses.
+backup_clusters.name	The name of a backup cluster.
+backup_clusters.nameservers	The nameserver addresses for the backup cluster.
+routing_strategy	Overall strategy for routing messages, e.g., "triple_cluster" sends messages to all clusters.
+failover_condition.consecutive_failures	The number of consecutive failures required to trigger a switch to a backup cluster.
+retry_interval_minutes	Time interval in minutes between retry attempts after a failure.
+weighted_routing	Specifies the percentage of traffic directed to each cluster.
+weighted_routing.[cluster_name]	The specific percentage of messages routed to a particular cluster.
+health_check_interval_minutes	The interval for performing health checks on clusters, in minutes.
+alert_notifications.recipients	List of recipients for alert notifications, typically email addresses.
+data_encryption.enabled	Boolean value indicating whether data encryption is enabled.
+data_encryption.algorithm	The encryption algorithm used, e.g., "AES-256".
+topic_routing	Configuration specific to message topics, including routing and control event frequency.
+topic_routing.topic_name	The name of the message topic.
+topic_routing.routing_strategy	Defines how messages for the topic are routed, e.g., "primary_cluster_only", "dual_cluster".
+topic_routing.clusters	Specifies clusters used for routing when the strategy involves multiple clusters.
+topic_routing.control_event_frequency_minutes	Frequency at which control events are sent for the topic, in minutes.
+This table and configuration file provide a comprehensive and flexible approach to managing the message routing and handling in a distributed RocketMQ setup. The topic-level configurations allow for precise control over how different types of messages are handled, ensuring that critical systems can maintain high availability and reliability.
