@@ -199,3 +199,22 @@ Design and Development	1 June 2023	30 August 2023
 Implementation and Deployment	1 September 2023	15 September 2023
 Project Closure	16 September 2023	30 September 2023
 Note: The above project schedule is subject to change based on project progress and other factors.
+
+Parameter	Value
+Primary Cluster Name	AlibabaCloud_RocketMQ_Cluster1
+Primary Cluster Nameservers	nameserver1.aliyun.com:9876,nameserver2.aliyun.com:9876
+Backup Cluster 1 Name	Local_Apache_RocketMQ_Cluster1
+Backup Cluster 1 Nameservers	nameserver1.local:9876,nameserver2.local:9876
+Backup Cluster 2 Name	Local_Apache_RocketMQ_Cluster2
+Backup Cluster 2 Nameservers	nameserver1.local:9876,nameserver2.local:9876
+Routing Strategy	triple_cluster
+Failover Condition (Consecutive Failures)	3
+Retry Interval (Minutes)	5
+Weighted Routing (Primary Cluster)	50
+Weighted Routing (Backup Cluster 1)	30
+Weighted Routing (Backup Cluster 2)	20
+Health Check Interval (Minutes)	2
+Alert Notifications (Recipients)	ops-team@example.com
+Control Event Frequency (Minutes)	30
+Data Encryption Enabled	true
+Encryption Algorithm	AES-256
