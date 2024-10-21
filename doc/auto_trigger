@@ -1,5 +1,78 @@
 #!/bin/bash
 
+# 1. Define source and destination paths for folders and Git repositories
+SOURCE_FOLDER1="/sem_nasi/mca_sem/ui2/smarteda-terminal-service/metadata"
+SOURCE_FOLDER2="/sem_nasi/mca_sem/ui2/smarteda-terminal-service/config-cache/EDA-MCA/config-cache"
+REPO_FOLDER1="/usr/src/smarteda-terminal/auto-sync/smarteda-terminal/src/main/resources/esc_conf/metadata"
+REPO_FOLDER2="/usr/src/smarteda-terminal/auto-sync/smarteda-terminal/src/main/resources/config-cache/EDA-MCA/config-cache"
+GIT_REPO_FOLDER="/usr/src/smarteda-terminal/auto-sync/smarteda-terminal-service"
+
+# Define temporary folders: one for source and one for target
+SOURCE_TEMP_FOLDER="/sem_nas1/mca_sem/uit2/smarteda/metadata_temp"
+TARGET_TEMP_FOLDER="/usr/src/terminal-auto-sync/metadata"
+
+# 2. Prepare source temporary folder and zip the files
+echo ">>> mkdir -p \"$SOURCE_TEMP_FOLDER\" <<<"
+mkdir -p "$SOURCE_TEMP_FOLDER"
+
+# Zip the source files into the source temporary folder
+echo ">>> zip -r \"$SOURCE_TEMP_FOLDER/metadata.zip\" \"$SOURCE_FOLDER1\"/* <<<"
+zip -r "$SOURCE_TEMP_FOLDER/metadata.zip" "$SOURCE_FOLDER1"/*
+
+# 3. Prepare target temporary folder and copy the zip file from source to target
+echo ">>> mkdir -p \"$TARGET_TEMP_FOLDER\" <<<"
+mkdir -p "$TARGET_TEMP_FOLDER"
+
+echo ">>> cp \"$SOURCE_TEMP_FOLDER/metadata.zip\" \"$TARGET_TEMP_FOLDER/metadata.zip\" <<<"
+cp "$SOURCE_TEMP_FOLDER/metadata.zip" "$TARGET_TEMP_FOLDER/metadata.zip"
+
+# 4. Unzip the copied file into a subfolder of the target temporary folder
+echo ">>> unzip \"$TARGET_TEMP_FOLDER/metadata.zip\" -d \"$TARGET_TEMP_FOLDER/metadata\" <<<"
+unzip "$TARGET_TEMP_FOLDER/metadata.zip" -d "$TARGET_TEMP_FOLDER/metadata"
+
+# 5. Remove the zip file after extraction
+echo ">>> rm -f \"$TARGET_TEMP_FOLDER/metadata.zip\" <<<"
+rm -f "$TARGET_TEMP_FOLDER/metadata.zip"
+
+# 6. Copy unzipped content to the Git repository folders
+echo ">>> cp -r \"$TARGET_TEMP_FOLDER/metadata\"/* \"$REPO_FOLDER1\" <<<"
+cp -r "$TARGET_TEMP_FOLDER/metadata"/* "$REPO_FOLDER1"
+
+echo ">>> cp -r \"$TARGET_TEMP_FOLDER/metadata\"/* \"$REPO_FOLDER2\" <<<"
+cp -r "$TARGET_TEMP_FOLDER/metadata"/* "$REPO_FOLDER2"
+
+# 7. Navigate to the Git repository and switch to the target branch
+echo ">>> cd \"$GIT_REPO_FOLDER\" <<<"
+cd "$GIT_REPO_FOLDER" || exit
+
+echo ">>> git checkout feature/autosync <<<"
+git checkout feature/autosync
+
+# 8. Pull the latest changes from the remote repository
+echo ">>> git pull <<<"
+git pull
+
+# 9. Stage the changes for commit
+echo ">>> git add . <<<"
+git add .
+
+# 10. Commit the changes with a timestamped message
+COMMIT_MESSAGE="Auto commit config-cache&metadata on $(date +'%Y-%m-%d %H:%M:%S')"
+echo ">>> git commit -m \"$COMMIT_MESSAGE\" <<<"
+git commit -m "$COMMIT_MESSAGE"
+
+# 11. Push the changes to the remote Git repository
+echo ">>> git push <<<"
+git push
+
+# 12. Print success message with timestamp
+echo ">>> echo \"Files copied and pushed to GitHub successfully at $(date)\" <<<"
+echo "Files copied and pushed to GitHub successfully at $(date)"
+
+
+
+#!/bin/bash
+
 # 1. Define source folder paths and target Git repository folder paths
 SOURCE_FOLDER1="/source/folder1"
 SOURCE_FOLDER2="/source/folder2"
