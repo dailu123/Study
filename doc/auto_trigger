@@ -1,3 +1,37 @@
+#!/bin/bash
+
+# 1. Define source folder paths and target Git repository folder paths
+SOURCE_FOLDER1="/source/folder1"
+SOURCE_FOLDER2="/source/folder2"
+REPO_FOLDER1="/path/to/your/repo/folder1"
+REPO_FOLDER2="/path/to/your/repo/folder2"
+
+# 2. Copy files from source folders to the target folders in the Git repository
+cp -r "$SOURCE_FOLDER1"/* "$REPO_FOLDER1"
+cp -r "$SOURCE_FOLDER2"/* "$REPO_FOLDER2"
+
+# 3. Navigate to the Git repository path
+cd /path/to/your/repo
+
+# 4. Pull the latest changes from the remote repository to ensure sync
+git pull origin main
+
+# 5. Stage all changes in the repository
+git add .
+
+# 6. Commit the changes with the current date and time as the commit message
+COMMIT_MESSAGE="Auto commit on $(date +"%Y-%m-%d %H:%M:%S")"
+git commit -m "$COMMIT_MESSAGE"
+
+# 7. Push the changes to the GitHub repository
+git push origin main
+
+# 8. Print completion message with timestamp
+echo "Files copied and pushed to GitHub successfully at $(date)"
+
+
+
+
 Event Consumers Architecture Overview
 The Event Consumers are responsible for processing events received from the RocketMQ clusters. This component includes several key modules: Event Reception Module, Event Deduplication Module, Event Processing Module, and Reconciliation Module. Below is an overview of each module's function and their interaction within the system.
 
