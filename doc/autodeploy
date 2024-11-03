@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Set repository path and navigate to it
+echo ">>> Navigating to repository path... <<<"
+REPO_PATH="/path/to/your/repo"
+echo ">>> cd \"$REPO_PATH\" <<<"
+cd "$REPO_PATH" || exit
+
+# Set branch name based on current date and hour
+echo ">>> Setting branch name... <<<"
+BRANCH_NAME="deploy-$(date +'%Y-%m-%d-%H')"
+echo ">>> Branch name is: $BRANCH_NAME <<<"
+
+# Checkout to autoxx branch and pull latest changes
+echo ">>> Checking out autoxx branch and pulling latest changes... <<<"
+echo ">>> git checkout autoxx <<<"
+git checkout autoxx
+echo ">>> git pull origin autoxx <<<"
+git pull origin autoxx
+
+# Check if branch already exists
+if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+  echo ">>> Branch $BRANCH_NAME already exists. Checking out to the existing branch... <<<"
+  echo ">>> git checkout \"$BRANCH_NAME\" <<<"
+  git checkout "$BRANCH_NAME"
+else
+  # Create new branch and switch to it
+  echo ">>> Creating and checking out new branch $BRANCH_NAME... <<<"
+  echo ">>> git checkout -b \"$BRANCH_NAME\" <<<"
+  git checkout -b "$BRANCH_NAME"
+fi
+
+# Fetch and merge feature branch into the new branch
+echo ">>> Merging feature/feature branch into $BRANCH_NAME... <<<"
+echo ">>> git fetch origin feature/feature <<<"
+git fetch origin feature/feature
+echo ">>> git merge --no-ff origin/feature/feature -m \"Merge feature/feature into $BRANCH_NAME\" <<<"
+git merge --no-ff origin/feature/feature -m "Merge feature/feature into $BRANCH_NAME"
+
+# Push the new branch to the remote repository
+echo ">>> Pushing new branch $BRANCH_NAME to origin... <<<"
+echo ">>> git push origin \"$BRANCH_NAME\" <<<"
+git push origin "$BRANCH_NAME"
+
+# Create a pull request (requires GitHub CLI `gh`)
+echo ">>> Creating pull request with GitHub CLI... <<<"
+echo ">>> gh pr create --title \"Auto-deploy: $BRANCH_NAME\" --body \"Automated PR from script\" --base target-branch --head \"$BRANCH_NAME\" <<<"
+gh pr create --title "Auto-deploy: $BRANCH_NAME" --body "Automated PR from script" --base target-branch --head "$BRANCH_NAME"
