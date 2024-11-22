@@ -1,3 +1,18 @@
+Scenario ID	Failure/Scenario Description	Impact Severity	How Is It Detected
+SE-01	Message Transformation Failure: SmartEDA fails to transform incoming messages due to invalid schema or transformation logic errors.	High: Causes delays or incorrect processing in downstream systems.	Detected via AppD (increase in transformation latency or errors) and Splunk logs (error patterns in transformation modules).
+SE-02	Queue Overload: Incoming messages exceed SmartEDA’s processing capacity, causing message queues to pile up.	Critical: Potential data loss or delayed message delivery, affecting downstream systems.	Detected via Splunk (queue size metrics) and AppD alerts on throughput drop.
+SE-03	IKP Node Crash: The underlying Kubernetes node hosting SmartEDA pods becomes unavailable.	Critical: Service downtime for message processing and transformation.	Detected via AppD (missing heartbeat from pods) and IKP Node Status logs in Splunk.
+SE-04	Pod Restart Loop: SmartEDA pods enter a crash-restart loop due to configuration issues or runtime errors.	High: Service availability is intermittent, leading to inconsistent message processing.	Detected via AppD (high pod restart counts) and Splunk logs (CrashLoopBackOff patterns).
+SE-05	App Config Sync Failure: Failure to synchronize application configurations between SmartEDA and connected systems.	Medium: Leads to outdated transformations or connection issues.	Detected via Splunk (sync job errors) and AppD (config API failure metrics).
+SE-06	Network Partition: Connectivity issues between SmartEDA and upstream/downstream systems.	High: Messages may be lost or delayed during processing.	Detected via AppD (network latency or failed API calls) and Splunk logs (connection timeout errors).
+SE-07	Dead Letter Queue Growth: Large numbers of unprocessed messages accumulate in the Dead Letter Queue (DLQ).	Medium: Potentially critical messages are delayed, requiring manual intervention.	Detected via Splunk (DLQ size metrics) and AppD DLQ monitoring alerts.
+SE-08	Schema Registry Unavailability: SmartEDA cannot fetch required schemas for message validation.	High: Invalid messages may pass downstream or cause processing errors.	Detected via AppD (schema registry API error rate) and Splunk (SchemaRegistryUnavailable errors).
+SE-09	Data Store Write Failures: Errors writing processed data to the connected data store (e.g., database or cloud storage).	High: Leads to partial processing or data inconsistencies.	Detected via AppD (database connection errors) and Splunk (write operation failure logs).
+SE-10	Unauthorized Access Attempt: Malicious or accidental unauthorized attempts to access SmartEDA.	Medium: May compromise security and require immediate review.	Detected via Splunk (access logs with unauthorized attempts) and AppD security monitoring alerts.
+
+
+
+
 Epic Title: Flink-RocketMQ Integration for Message Forwarding
 
 Feature Title: Message Forwarding from RocketMQ to Another RocketMQ Topic using Flink
