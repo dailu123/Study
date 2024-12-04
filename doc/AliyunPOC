@@ -1,3 +1,35 @@
+#!/bin/bash
+
+# Prompt the user for the directory path
+read -p "Enter the directory path to verify XML files: " DIRECTORY
+
+# Check if the directory exists
+if [ ! -d "$DIRECTORY" ]; then
+    echo "Error: Directory '$DIRECTORY' does not exist."
+    exit 1
+fi
+
+# Loop through all XML files in the specified directory
+for file in "$DIRECTORY"/*.xml; do
+    # Check if there are any XML files in the directory
+    if [ -f "$file" ]; then
+        echo "Verifying: $file"
+        
+        # Use xmllint to check if the XML file is well-formed
+        xmllint --noout "$file"
+        
+        # Check the exit status of xmllint
+        if [ $? -eq 0 ]; then
+            echo "$file is well-formed."
+        else
+            echo "$file has errors!"
+        fi
+    else
+        echo "No XML files found in the directory."
+    fi
+done
+
+
 Scenario ID	Failure/Scenario Description	Impact Severity	How Is It Detected
 SE-01	Message Transformation Failure: SmartEDA fails to transform incoming messages due to invalid schema or transformation logic errors.	High: Causes delays or incorrect processing in downstream systems.	Detected via AppD (increase in transformation latency or errors) and Splunk logs (error patterns in transformation modules).
 SE-02	Queue Overload: Incoming messages exceed SmartEDA’s processing capacity, causing message queues to pile up.	Critical: Potential data loss or delayed message delivery, affecting downstream systems.	Detected via Splunk (queue size metrics) and AppD alerts on throughput drop.
