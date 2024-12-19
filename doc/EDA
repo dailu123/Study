@@ -1,3 +1,7 @@
+Identifying Performance Issues in Event-Driven Architectures (EDA)
+
+Event-Driven Architecture (EDA) is a reactive system design where events drive the flow of information. While this design offers scalability and agility, performance issues can significantly impact system health and user experience. Identifying and addressing these issues requires proactive monitoring and well-defined performance indicators.
+
 Key Metrics and Performance Indicators
 
 1. Latency Metrics
@@ -76,6 +80,18 @@ Usage: Provides visibility into the flow of events through distributed component
 
 Tools: Prometheus, Grafana, Datadog, Splunk.
 
+Integration with EDA Platforms:
+
+Prometheus: Works seamlessly with message brokers like Kafka and RabbitMQ, offering real-time metrics collection and alerting based on broker health and queue depth.
+
+Grafana: Enables visualization of event flows, broker metrics, and application health, often integrated with Prometheus for dashboards.
+
+Datadog: Provides distributed tracing, real-time alerts, and anomaly detection across EDA components, integrating with cloud platforms like AWS SQS or Azure Event Hubs.
+
+Splunk: Offers advanced log analysis and visualization for event streams, aiding in root cause analysis and historical trend monitoring.
+
+Tools: Prometheus, Grafana, Datadog, Splunk.
+
 Benefits: Collect, visualize, and alert on performance metrics.
 
 4. Health Checks and Alerts
@@ -129,4 +145,3 @@ Adopt Event Replay Mechanisms: Ensure failed events can be retried without data 
 Regularly Test for Failures: Simulate failures to ensure resilience mechanisms function as expected.
 
 By combining these metrics, techniques, and best practices, organizations can maintain the health and performance of their Event-Driven Architectures, ensuring smooth and reliable operations.
-
