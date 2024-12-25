@@ -1,3 +1,403 @@
+1.3. Flask Application
+Create a Python script named app.py for the Flask backend:
+
+python
+复制代码
+# app.py
+from flask import Flask, jsonify
+from flask_cors import CORS
+import sqlite3
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+
+DATABASE = 'flows.db'
+
+def get_parent_flow_no(flow_no):
+    parts = flow_no.split('-')
+    if len(parts) <= 4:
+        return None  # Root flow
+    return '-'.join(parts[:-1])
+
+def build_hierarchy(flows):
+    flows_map = {}
+    roots = []
+
+    # Initialize flows map
+    for flow in flows:
+        flows_map[flow['ESCFLOWNO']] = {
+            'escflowno': flow['ESCFLOWNO'],
+            'serviceId': flow['SERVICEID'],
+            'businessRespCode': flow['BUSINESSRESPCODE'],
+            'tranStamp': flow['TRANSTAMP'],
+            'children': []
+        }
+
+    # Build the tree
+    for flow in flows:
+        parent_flow_no = get_parent_flow_no(flow['ESCFLOWNO'])
+        if parent_flow_no and parent_flow_no in flows_map:
+            flows_map[parent_flow_no]['children'].append(flows_map[flow['ESCFLOWNO']])
+        else:
+            roots.append(flows_map[flow['ESCFLOWNO']])
+
+    # Sort children by TRANSTAMP recursively
+    def sort_children(node):
+        node['children'].sort(key=lambda x: x['tranStamp'])
+        for child in node['children']:
+            sort_children(child)
+
+    for root in roots:
+        sort_children(root)
+
+    return roots
+
+@app.route('/api/flows', methods=['GET'])
+def get_flows():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row  # To access columns by name
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT ESCFLOWNO, SERVICEID, BUSINESSRESPCODE, TRANSTAMP
+        FROM flows
+        ORDER BY TRANSTAMP ASC
+    ''')
+    rows = cursor.fetchall()
+    conn.close()
+
+    flows = [dict(row) for row in rows]
+    hierarchy = build_hierarchy(flows)
+    return jsonify(hierarchy)
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+Explanation:
+
+CORS: Enabled using flask-cors to allow the frontend (which might be served from a different origin) to access the API.
+get_parent_flow_no: Determines the parent flow number by removing the last segment after the dash.
+build_hierarchy: Constructs the hierarchical tree from the flat list of flows.
+/api/flows: API endpoint that returns the hierarchical JSON data.
+Run the Flask Server:
+
+bash
+复制代码
+python app.py
+The server will start on http://localhost:5000.
+
+2. Frontend Setup with Vue.js via CDN
+Since you don't have npm, we'll use Vue.js and Axios via CDN links. Create a simple HTML file that includes these libraries and implements the required functionality.
+
+2.1. HTML Structure
+Create an index.html file with the following content:
+
+html
+复制代码
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction Flows</title>
+    <!-- Include Vue.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <!-- Include Axios via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        /* Basic styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .flow-node {
+            display: flex;
+            align-items: center;
+            margin: 4px 0;
+        }
+        .flow-node.success {
+            color: green;
+        }
+        .flow-node.failure {
+            color: red;
+        }
+        .children {
+            margin-left: 20px; /* Indent children */
+        }
+        .timestamp {
+            margin-left: 8px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        /* Optional: Add lines or connectors for better visualization */
+        .flow-node::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 1px;
+            background: #ccc;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Transaction Flows</h1>
+        <div v-if="loading">Loading...</div>
+        <div v-else>
+            <flow-tree v-for="root in roots" :key="root.escflowno" :node="root"></flow-tree>
+        </div>
+    </div>
+
+    <script>
+        // Define the FlowTree component
+        Vue.component('flow-tree', {
+            props: ['node'],
+            template: `
+                <div>
+                    <div :class="['flow-node', statusClass]">
+                        <span>{{ node.serviceId }}</span>
+                        <span class="timestamp">{{ node.tranStamp }}</span>
+                    </div>
+                    <div class="children" v-if="node.children && node.children.length">
+                        <flow-tree
+                            v-for="child in node.children"
+                            :key="child.escflowno"
+                            :node="child"
+                        ></flow-tree>
+                    </div>
+                </div>
+            `,
+            computed: {
+                statusClass() {
+                    return this.node.businessRespCode === "000000" ? 'success' : 'failure';
+                }
+            }
+        });
+
+        // Initialize the Vue instance
+        new Vue({
+            el: '#app',
+            data: {
+                roots: [],
+                loading: true
+            },
+            created() {
+                this.fetchFlows();
+            },
+            methods: {
+                fetchFlows() {
+                    axios.get('http://localhost:5000/api/flows')
+                        .then(response => {
+                            this.roots = response.data;
+                            this.loading = false;
+                        })
+                        .catch(error => {
+                            console.error("Error fetching flows:", error);
+                            this.loading = false;
+                        });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+Explanation:
+
+Vue.js and Axios via CDN: Included in the <head> section.
+FlowTree Component: A recursive component that displays each node and its children.
+Props: Receives a node object.
+Template: Displays SERVICEID and TRANSTAMP, with color-coding based on BUSINESSRESPCODE.
+Computed Property: Determines the CSS class (success or failure) based on the BUSINESSRESPCODE.
+Vue Instance:
+Data: Holds roots (the root flows) and a loading state.
+Created Hook: Fetches data from the backend when the component is created.
+Methods: fetchFlows uses Axios to get data from the Flask API.
+2.2. Vue.js Component
+The FlowTree component is defined globally using Vue.component. It recursively renders child flows. Each flow node displays the SERVICEID and TRANSTAMP, and applies a color based on the BUSINESSRESPCODE.
+
+2.3. Styling
+Basic CSS is included within the <style> tags to handle indentation and color-coding:
+
+.flow-node.success: Green text for successful flows (BUSINESSRESPCODE = 000000).
+.flow-node.failure: Red text for failed flows (other BUSINESSRESPCODE values).
+.children: Indents child flows for better visualization.
+Feel free to enhance the styling as per your requirements.
+
+3. Running the Application
+3.1. Start the Backend Server
+Ensure you've initialized the database and started the Flask server:
+
+bash
+复制代码
+python init_db.py
+python app.py
+The Flask server should be running on http://localhost:5000.
+
+3.2. Open the Frontend
+Since the frontend is a simple index.html file, you can open it directly in your web browser. However, due to CORS policies, it's better to serve it via a local web server.
+
+Option 1: Using Python's Built-in HTTP Server
+
+Navigate to the directory containing index.html and run:
+
+For Python 3:
+
+bash
+复制代码
+python -m http.server 8000
+For Python 2:
+
+bash
+复制代码
+python -m SimpleHTTPServer 8000
+Open your browser and navigate to http://localhost:8000/index.html.
+
+Option 2: Using Flask to Serve the Frontend
+
+Alternatively, you can have Flask serve the frontend as static files.
+
+Modify app.py:
+
+python
+复制代码
+# app.py (Updated)
+from flask import Flask, jsonify, send_from_directory
+from flask_cors import CORS
+import sqlite3
+import os
+
+app = Flask(__name__, static_folder='frontend')
+CORS(app)  # Enable CORS for all routes
+
+DATABASE = 'flows.db'
+
+def get_parent_flow_no(flow_no):
+    parts = flow_no.split('-')
+    if len(parts) <= 4:
+        return None  # Root flow
+    return '-'.join(parts[:-1])
+
+def build_hierarchy(flows):
+    flows_map = {}
+    roots = []
+
+    # Initialize flows map
+    for flow in flows:
+        flows_map[flow['ESCFLOWNO']] = {
+            'escflowno': flow['ESCFLOWNO'],
+            'serviceId': flow['SERVICEID'],
+            'businessRespCode': flow['BUSINESSRESPCODE'],
+            'tranStamp': flow['TRANSTAMP'],
+            'children': []
+        }
+
+    # Build the tree
+    for flow in flows:
+        parent_flow_no = get_parent_flow_no(flow['ESCFLOWNO'])
+        if parent_flow_no and parent_flow_no in flows_map:
+            flows_map[parent_flow_no]['children'].append(flows_map[flow['ESCFLOWNO']])
+        else:
+            roots.append(flows_map[flow['ESCFLOWNO']])
+
+    # Sort children by TRANSTAMP recursively
+    def sort_children(node):
+        node['children'].sort(key=lambda x: x['tranStamp'])
+        for child in node['children']:
+            sort_children(child)
+
+    for root in roots:
+        sort_children(root)
+
+    return roots
+
+@app.route('/api/flows', methods=['GET'])
+def get_flows():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row  # To access columns by name
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT ESCFLOWNO, SERVICEID, BUSINESSRESPCODE, TRANSTAMP
+        FROM flows
+        ORDER BY TRANSTAMP ASC
+    ''')
+    rows = cursor.fetchall()
+    conn.close()
+
+    flows = [dict(row) for row in rows]
+    hierarchy = build_hierarchy(flows)
+    return jsonify(hierarchy)
+
+# Serve the frontend
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+Steps:
+
+Create Frontend Directory: Create a directory named frontend in the same folder as app.py.
+Move index.html: Place your index.html inside the frontend directory.
+Run Flask Server: Start the Flask server.
+bash
+复制代码
+python app.py
+Access the Application: Navigate to http://localhost:5000 in your browser.
+Note: This setup allows Flask to serve the index.html and any other static assets you might add in the future.
+
+4. Additional Recommendations
+4.1. Handling Large Datasets
+If your dataset grows large, fetching all flows at once might not be efficient. Consider implementing pagination or lazy-loading of child nodes.
+
+4.2. Enhancing the UI
+Collapsible Nodes: Make child flows collapsible to improve readability.
+Icons and Connectors: Use icons or lines to better represent the hierarchy.
+Search Functionality: Add a search bar to find specific flows by SERVICEID or ESCFLOWNO.
+4.3. Real-time Updates
+For real-time monitoring, consider using WebSockets (e.g., with Flask-SocketIO) to push new flows to the frontend as they are logged.
+
+4.4. Security Considerations
+Input Validation: Ensure that any inputs or queries are properly sanitized to prevent SQL injection.
+CORS Restrictions: Configure CORS to restrict access to trusted origins in a production environment.
+Authentication: Implement authentication if the application needs to be secured.
+4.5. Deployment
+When deploying the application:
+
+Use a Production Server: Deploy Flask with a production-ready server like Gunicorn or uWSGI behind a reverse proxy (e.g., Nginx).
+Database: Switch from SQLite to a more robust database system (e.g., PostgreSQL) if necessary.
+Static Files: Optimize and serve static files efficiently.
+Complete Project Structure
+Here's an overview of how your project directory should look:
+
+perl
+复制代码
+my-app/
+├── app.py
+├── flows.db
+├── init_db.py
+└── frontend/
+    └── index.html
+app.py: Flask backend application.
+flows.db: SQLite database containing the flows table.
+init_db.py: Script to initialize the database with sample data.
+frontend/index.html: Frontend HTML file with Vue.js via CDN.
+By following this guide, you'll have a functional application that:
+
+Backend: Uses Python and Flask to serve hierarchical flow data from a SQLite database via an API.
+Frontend: Uses Vue.js via CDN to fetch and display the data in a hierarchical, color-coded manner without requiring npm.
+Feel free to expand upon this foundation to add more features or optimize performance based on your specific needs.
+
+
+
+
+
+
+
+
+
 Identifying Performance Issues in Event-Driven Architectures (EDA)
 
 Event-Driven Architecture (EDA) is a reactive system design where events drive the flow of information. While this design offers scalability and agility, performance issues can significantly impact system health and user experience. Identifying and addressing these issues requires proactive monitoring and well-defined performance indicators.
