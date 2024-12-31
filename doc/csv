@@ -1,24 +1,24 @@
-Category,Task,Estimated Hours
-1. Schema Registry Integration,Write Avro Schema for Input JSON (30 Fields),12
-,Integrate Schema Registry with Confluent Kafka,20
-,    - Register Input Avro Schema,
-,    - Register Output Avro Schema,
-,Schema Validation and Compatibility Checks,10
-,Documentation for Schema Registry Setup,8
-Subtotal: Schema Registry Integration,,50
-2. Streaming Processing Modifications,Receive Avro Messages,8
-,Implement Filtering Using Specific Keys,12
-,Convert to Target Avro Schema and Send to Output,16
-,Testing Streaming Pipelines,12
-Subtotal: Streaming Processing Modifications,,48
-3. Confluent Kafka Setup,Configure Input and Output Kafka Topics,6
-,Security and Access Control,8
-Subtotal: Confluent Kafka Setup,,14
-4. Downstream Systems Integration,Configure Downstream Consumers,10
-,Testing End-to-End Data Flow,10
-Subtotal: Downstream Integration,,20
-5. Project Management and Contingencies,Project Planning and Coordination,12
-,Buffer for Unexpected Challenges,12
-Subtotal: Project Management,,24
-Total Estimated Working Hours,,156
-Total Estimated Workdays,(Assuming 8-hour workdays),~20 days
+Category,Task,Estimated Hours,Task Owner
+1. Schema Registry Integration,a. Write Avro Schema for Input JSON (30 Fields),12,Data Engineering Team
+,b. Integrate Schema Registry with Confluent Kafka,20,
+,    - Register Input Avro Schema,,Data Engineering Team
+,    - Register Output Avro Schema,,Data Engineering Team
+,c. Schema Validation and Compatibility Checks,10,Quality Assurance (QA) Team
+,d. Documentation for Schema Registry Setup,8,Technical Writing Team
+Subtotal: Schema Registry Integration,,50,
+2. Streaming Processing Modifications,a. Receive Avro Messages,8,Streaming Processing Team
+,b. Implement Filtering Using Specific Keys,12,Streaming Processing Team
+,c. Convert to Target Avro Schema and Send to Output,16,Streaming Processing Team
+,d. Testing Streaming Pipelines,12,Quality Assurance (QA) Team
+Subtotal: Streaming Processing Modifications,,48,
+3. Confluent Kafka Setup,a. Configure Input and Output Kafka Topics,6,Infrastructure / Kafka Admin Team
+,b. Security and Access Control,8,Security Team / Infrastructure
+Subtotal: Confluent Kafka Setup,,14,
+4. Downstream Systems Integration,a. Configure Downstream Consumers,10,Downstream Integration Team
+,b. Testing End-to-End Data Flow,10,Quality Assurance (QA) Team
+Subtotal: Downstream Integration,,20,
+5. Project Management and Contingencies,a. Project Planning and Coordination,12,Project Management Team
+,b. Buffer for Unexpected Challenges,12,Project Management Team
+Subtotal: Project Management,,24,
+Total Estimated Working Hours,,156,
+Total Estimated Workdays,(Assuming 8-hour workdays),~20 days,
