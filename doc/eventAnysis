@@ -1,0 +1,245 @@
+<!-- src/views/EventAnalysis.vue -->
+
+<template>
+  <v-container fluid>
+    <v-card>
+      <v-card-title>Event Analysis - Success, Failures, and Failure Rate</v-card-title>
+      <v-card-text>
+        <div ref="eventAnalysisChart" style="height: 600px;"></div>
+      </v-card-text>
+    </v-card>
+  </v-container>
+</template>
+
+<script>
+import * as echarts from "echarts";
+
+export default {
+  name: "EventAnalysis",
+  data() {
+    return {
+      // Simulated data for 500 events over the last 3 days
+      eventData: [],
+    };
+  },
+  mounted() {
+    this.generateMockData();
+    this.renderEventAnalysisChart();
+    window.addEventListener("resize", this.resizeChart);
+  },
+  beforeUnmount() {
+    window.removeEventListener("resize", this.resizeChart);
+  },
+  methods: {
+    /**
+     * Generates mock data for 500 events over the last 3 days.
+     * Each event has success and failure counts, and failure rates.
+     * Highlights events with failure rate increase > 50% on the last day.
+     */
+    generateMockData() {
+      const events = [];
+      for (let i = 1; i <= 500; i++) {
+        const eventName = `Event ${i}`;
+        // Generate random counts for three days
+        const day1Success = this.getRandomInt(100, 500);
+        const day1Failure = this.getRandomInt(0, 100);
+        const day1Rate = day1Failure / (day1Success + day1Failure);
+
+        const day2Success = this.getRandomInt(100, 500);
+        const day2Failure = this.getRandomInt(0, 100);
+        const day2Rate = day2Failure / (day2Success + day2Failure);
+
+        const day3Success = this.getRandomInt(100, 500);
+        const day3Failure = this.getRandomInt(0, 100);
+        const day3Rate = day3Failure / (day3Success + day3Failure);
+
+        // Determine if failure rate increased significantly (>50%) from day2 to day3
+        const rateIncrease =
+          day2Rate > 0 ? (day3Rate - day2Rate) / day2Rate : 0;
+        const highlight = rateIncrease > 0.5;
+
+        events.push({
+          name: eventName,
+          days: [
+            { date: "Day 1", success: day1Success, failure: day1Failure },
+            { date: "Day 2", success: day2Success, failure: day2Failure },
+            { date: "Day 3", success: day3Success, failure: day3Failure },
+          ],
+          failureRates: [day1Rate, day2Rate, day3Rate],
+          highlight: highlight,
+        });
+      }
+      this.eventData = events;
+    },
+
+    /**
+     * Generates a random integer between min and max (inclusive).
+     * @param {Number} min 
+     * @param {Number} max 
+     * @returns {Number}
+     */
+    getRandomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    },
+
+    /**
+     * Renders the combined stacked bar and line chart.
+     */
+    renderEventAnalysisChart() {
+      const chart = echarts.init(this.$refs.eventAnalysisChart);
+      this.chart = chart; // Save reference for resizing
+
+      // Extract unique dates (assuming 3 days)
+      const dates = this.eventData[0].days.map((day) => day.date);
+
+      // Prepare data series
+      const successSeries = dates.map((_, dayIndex) =>
+        this.eventData.map((event) => event.days[dayIndex].success)
+      );
+      const failureSeries = dates.map((_, dayIndex) =>
+        this.eventData.map((event) => event.days[dayIndex].failure)
+      );
+      const failureRateSeries = dates.map((_, dayIndex) =>
+        this.eventData.map((event) => event.failureRates[dayIndex] * 100)
+      );
+
+      // Determine color for failure bars based on highlight
+      const failureColors = this.eventData.map((event) =>
+        event.highlight ? "#FF5252" : "#FFC107"
+      );
+
+      const option = {
+        title: {
+          text: "Event Success, Failures, and Failure Rate",
+          left: "center",
+        },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: {
+            type: "shadow",
+          },
+          formatter: (params) => {
+            let tooltip = `<b>${params[0].axisValue}</b><br/>`;
+            params.forEach((item) => {
+              if (item.seriesName === "Failure Rate (%)") {
+                tooltip += `${item.marker} ${item.seriesName}: ${item.data.toFixed(
+                  2
+                )}%<br/>`;
+              } else {
+                tooltip += `${item.marker} ${item.seriesName}: ${item.data}<br/>`;
+              }
+            });
+            return tooltip;
+          },
+        },
+        legend: {
+          data: ["Success", "Failure", "Failure Rate (%)"],
+          top: "10%",
+        },
+        grid: {
+          left: "3%",
+          right: "4%",
+          bottom: "3%",
+          containLabel: true,
+        },
+        xAxis: {
+          type: "category",
+          data: this.eventData.map((event) => event.name),
+          axisLabel: {
+            interval: 0,
+            rotate: 45, // Rotate labels for better readability
+            fontSize: 8,
+          },
+        },
+        yAxis: [
+          {
+            type: "value",
+            name: "Count",
+            position: "left",
+            axisLabel: {
+              formatter: "{value}",
+            },
+          },
+          {
+            type: "value",
+            name: "Failure Rate (%)",
+            position: "right",
+            axisLabel: {
+              formatter: "{value}%",
+            },
+            min: 0,
+            max: 100,
+          },
+        ],
+        dataZoom: [
+          {
+            type: "inside",
+            start: 0,
+            end: 100,
+          },
+          {
+            start: 0,
+            end: 100,
+          },
+        ],
+        series: [
+          {
+            name: "Success",
+            type: "bar",
+            data: successSeries[2], // Latest day (Day 3)
+            itemStyle: {
+              color: "#4CAF50", // Green for success
+            },
+            barWidth: "60%",
+          },
+          {
+            name: "Failure",
+            type: "bar",
+            data: failureSeries[2], // Latest day (Day 3)
+            itemStyle: {
+              color: (params) => failureColors[params.dataIndex],
+            },
+            barWidth: "60%",
+          },
+          {
+            name: "Failure Rate (%)",
+            type: "line",
+            yAxisIndex: 1,
+            data: failureRateSeries[2],
+            smooth: true,
+            symbol: "circle",
+            symbolSize: 6,
+            lineStyle: {
+              color: "#FFC107", // Yellow for failure rate
+            },
+            itemStyle: {
+              color: "#FFC107",
+            },
+          },
+        ],
+      };
+
+      chart.setOption(option);
+    },
+
+    /**
+     * Resizes the chart on window resize.
+     */
+    resizeChart() {
+      if (this.chart) {
+        this.chart.resize();
+      }
+    },
+  },
+};
+</script>
+
+<style scoped>
+/* Optional: Add custom styles here */
+
+/* Ensure the chart container fills the card */
+div[ref="eventAnalysisChart"] {
+  width: 100%;
+  height: 600px;
+}
+</style>
