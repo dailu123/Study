@@ -1,3 +1,22 @@
+// src/assets/data.json
+
+{
+  "overview": {
+    "totalEvents": 1000,
+    "successfulEvents": 800,
+    "failedEvents": 200,
+    "failureRate": 20
+  },
+  "eventAnalysis": {
+    "eventTypes": [
+      { "type": "Login", "count": 500 },
+      { "type": "Purchase", "count": 300 },
+      { "type": "Logout", "count": 200 }
+    ]
+  }
+}
+
+
 <!-- src/App.vue -->
 
 <template>
