@@ -1,0 +1,162 @@
+// src/router/index.js
+
+import { createRouter, createWebHistory } from 'vue-router'
+import Overview from '../views/Overview.vue'
+import EventAnalysis from '../views/EventAnalysis.vue'
+
+const routes = [
+  {
+    path: '/',
+    name: 'Overview',
+    component: Overview,
+  },
+  {
+    path: '/event-analysis',
+    name: 'EventAnalysis',
+    component: EventAnalysis,
+  },
+  // Add more routes here as needed
+]
+
+const router = createRouter({
+  history: createWebHistory(process.env.BASE_URL),
+  routes,
+})
+
+export default router
+
+<!-- src/views/Overview.vue -->
+
+<template>
+  <v-container>
+    <v-row>
+      <v-col>
+        <h1>Overview</h1>
+        <p>Welcome to the Overview page. Here you can see a summary of your system.</p>
+        <!-- Add more content and components as needed -->
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+<script>
+export default {
+  name: 'Overview',
+}
+</script>
+
+<style scoped>
+/* Add component-specific styles here */
+</style>
+
+<!-- src/views/EventAnalysis.vue -->
+
+<template>
+  <v-container>
+    <v-row>
+      <v-col>
+        <h1>Event Analysis</h1>
+        <p>Analyze and visualize event data here.</p>
+        <!-- Add charts and analysis components as needed -->
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+<script>
+export default {
+  name: 'EventAnalysis',
+}
+</script>
+
+<style scoped>
+/* Add component-specific styles here */
+</style>
+<!-- src/App.vue -->
+
+<template>
+  <v-app>
+    <!-- Application Toolbar -->
+    <v-app-bar app color="primary" dark>
+      <v-toolbar-title>Admin Dashboard</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <!-- Optional: Add toolbar items like user profile, notifications, etc. -->
+    </v-app-bar>
+
+    <!-- Navigation Drawer (Sidebar) -->
+    <v-navigation-drawer app v-model="drawer" clipped>
+      <v-list dense>
+        <!-- Overview Menu Item -->
+        <v-list-item link @click="navigateTo('/')">
+          <v-list-item-icon>
+            <v-icon>mdi-view-dashboard</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>Overview</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
+        <!-- Event Analysis Menu Item -->
+        <v-list-item link @click="navigateTo('/event-analysis')">
+          <v-list-item-icon>
+            <v-icon>mdi-chart-line</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>Event Analysis</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list>
+    </v-navigation-drawer>
+
+    <!-- Application Content -->
+    <v-main>
+      <v-container fluid>
+        <router-view />
+      </v-container>
+    </v-main>
+
+    <!-- Optional: Add Application Footer -->
+    <v-footer app color="primary" dark>
+      <span>&copy; 2025 Your Company</span>
+    </v-footer>
+  </v-app>
+</template>
+
+<script>
+export default {
+  name: 'App',
+  data() {
+    return {
+      drawer: false, // Controls the visibility of the navigation drawer
+    }
+  },
+  methods: {
+    /**
+     * Navigates to the specified route and closes the drawer.
+     * @param {String} route - The route path to navigate to.
+     */
+    navigateTo(route) {
+      this.$router.push(route)
+      this.drawer = false
+    },
+  },
+}
+</script>
+
+<style>
+/* Global styles can be added here */
+</style>
+// src/plugins/vuetify.js
+
+import 'vuetify/styles'
+import { createVuetify } from 'vuetify'
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
+
+export default createVuetify({
+  components,
+  directives,
+  theme: {
+    defaultTheme: 'light',
+  },
+})
