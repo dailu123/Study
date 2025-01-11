@@ -1,3 +1,192 @@
+<!-- src/App.vue -->
+
+<template>
+  <v-app>
+    <!-- Top App Bar -->
+    <v-app-bar app color="primary" dark>
+      <v-toolbar-title>Admin Dashboard</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <!-- Optional: Add additional items like user profile, notifications, etc. -->
+    </v-app-bar>
+
+    <!-- Sidebar Navigation Drawer -->
+    <v-navigation-drawer app v-model="drawer" clipped>
+      <v-list dense>
+        <!-- Overview Menu Item -->
+        <v-list-item link @click="navigateTo('/')">
+          <v-list-item-icon>
+            <v-icon>mdi-view-dashboard</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>Overview</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
+        <!-- Event Analysis Menu Item -->
+        <v-list-item link @click="navigateTo('/event-analysis')">
+          <v-list-item-icon>
+            <v-icon>mdi-chart-line</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>Event Analysis</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list>
+    </v-navigation-drawer>
+
+    <!-- Main Content Area -->
+    <v-main>
+      <v-container fluid>
+        <router-view />
+      </v-container>
+    </v-main>
+
+    <!-- Optional: Footer -->
+    <v-footer app color="primary" dark>
+      <span>&copy; 2025 Your Company</span>
+    </v-footer>
+  </v-app>
+</template>
+
+<script>
+export default {
+  name: 'App',
+  data() {
+    return {
+      drawer: false, // Controls the visibility of the sidebar
+    }
+  },
+  methods: {
+    /**
+     * Navigates to the specified route and closes the sidebar.
+     * @param {String} route - The route path to navigate to.
+     */
+    navigateTo(route) {
+      this.$router.push(route)
+      this.drawer = false
+    },
+  },
+}
+</script>
+
+<style>
+/* Add global styles here if necessary */
+</style>
+<!-- src/views/Overview.vue -->
+
+<template>
+  <v-container>
+    <v-row>
+      <v-col>
+        <h1>Overview</h1>
+        <p>Welcome to the Overview page. Here you can see a summary of your system.</p>
+        <v-row>
+          <v-col cols="12" sm="6" md="3">
+            <v-card color="green lighten-4" class="pa-4">
+              <v-card-title>Total Events</v-card-title>
+              <v-card-text>
+                <h2>{{ summary.totalEvents }}</h2>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" sm="6" md="3">
+            <v-card color="blue lighten-4" class="pa-4">
+              <v-card-title>Successful Events</v-card-title>
+              <v-card-text>
+                <h2>{{ summary.successfulEvents }}</h2>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" sm="6" md="3">
+            <v-card color="red lighten-4" class="pa-4">
+              <v-card-title>Failed Events</v-card-title>
+              <v-card-text>
+                <h2>{{ summary.failedEvents }}</h2>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" sm="6" md="3">
+            <v-card color="orange lighten-4" class="pa-4">
+              <v-card-title>Failure Rate</v-card-title>
+              <v-card-text>
+                <h2>{{ summary.failureRate }}%</h2>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+<script>
+import data from '@/assets/data.json'
+
+export default {
+  name: 'Overview',
+  data() {
+    return {
+      summary: data.overview, // Mock data from local JSON file
+    }
+  },
+}
+</script>
+
+<style scoped>
+/* Add component-specific styles here */
+</style>
+<!-- src/views/EventAnalysis.vue -->
+
+<template>
+  <v-container>
+    <v-row>
+      <v-col>
+        <h1>Event Analysis</h1>
+        <p>Analyze and visualize event data here.</p>
+        <v-card>
+          <v-card-title>Event Types</v-card-title>
+          <v-card-text>
+            <v-list>
+              <v-list-item v-for="(event, index) in analysisData.eventTypes" :key="index">
+                <v-list-item-content>
+                  <v-list-item-title>{{ event.type }}</v-list-item-title>
+                </v-list-item-content>
+                <v-list-item-action>
+                  <v-chip color="primary" dark>{{ event.count }}</v-chip>
+                </v-list-item-action>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+<script>
+import data from '@/assets/data.json'
+
+export default {
+  name: 'EventAnalysis',
+  data() {
+    return {
+      analysisData: data.eventAnalysis, // Mock data from local JSON file
+    }
+  },
+}
+</script>
+
+<style scoped>
+/* Add component-specific styles here */
+</style>
+
+
+
+
+
+
+
+-----------
 // src/router/index.js
 
 import { createRouter, createWebHistory } from 'vue-router'
