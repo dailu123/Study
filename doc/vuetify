@@ -1,4 +1,173 @@
 <template>
+  <v-container>
+    <v-row>
+      <v-col cols="12" md="6">
+        <v-card>
+          <v-card-title>Failure Rate Trend (Last 3 Days)</v-card-title>
+          <v-card-text>
+            <div ref="failureTrendChart" style="height: 400px;"></div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" md="6">
+        <v-card>
+          <v-card-title>Event Ranking</v-card-title>
+          <v-card-text>
+            <div ref="eventRankingChart" style="height: 400px;"></div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+<script>
+import * as echarts from "echarts";
+
+export default {
+  name: "EventAnalysis",
+  data() {
+    return {
+      // Simulated event data
+      failureRateTrendData: {
+        dates: ["Day 1", "Day 2", "Day 3"],
+        events: [
+          { name: "Event A", rates: [0.1, 0.2, 0.15] },
+          { name: "Event B", rates: [0.05, 0.1, 0.3] },
+          { name: "Event C", rates: [0.2, 0.25, 0.35] },
+        ],
+      },
+      eventRankingData: [
+        {
+          name: "Event A",
+          success: 300,
+          failure: 50,
+          failureRate: 0.14,
+          highlight: false,
+        },
+        {
+          name: "Event B",
+          success: 200,
+          failure: 100,
+          failureRate: 0.33,
+          highlight: true,
+        },
+        {
+          name: "Event C",
+          success: 150,
+          failure: 200,
+          failureRate: 0.57,
+          highlight: true,
+        },
+      ],
+    };
+  },
+  mounted() {
+    this.renderFailureTrendChart();
+    this.renderEventRankingChart();
+  },
+  methods: {
+    // Render Failure Rate Trend Chart
+    renderFailureTrendChart() {
+      const chart = echarts.init(this.$refs.failureTrendChart);
+      const option = {
+        title: {
+          text: "Failure Rate Trend",
+        },
+        tooltip: {
+          trigger: "axis",
+          formatter: (params) => {
+            return params
+              .map(
+                (item) =>
+                  `${item.marker}${item.seriesName}: ${(
+                    item.data * 100
+                  ).toFixed(2)}%`
+              )
+              .join("<br>");
+          },
+        },
+        legend: {
+          data: this.failureRateTrendData.events.map((e) => e.name),
+        },
+        xAxis: {
+          type: "category",
+          data: this.failureRateTrendData.dates,
+        },
+        yAxis: {
+          type: "value",
+          axisLabel: {
+            formatter: "{value}%",
+          },
+        },
+        series: this.failureRateTrendData.events.map((event) => ({
+          name: event.name,
+          type: "line",
+          data: event.rates,
+        })),
+      };
+      chart.setOption(option);
+    },
+
+    // Render Event Ranking Chart
+    renderEventRankingChart() {
+      const chart = echarts.init(this.$refs.eventRankingChart);
+      const option = {
+        title: {
+          text: "Event Ranking",
+        },
+        tooltip: {
+          trigger: "item",
+          formatter: (params) =>
+            `${params.seriesName}<br>${params.name}: ${params.data}`,
+        },
+        legend: {
+          data: ["Success", "Failure"],
+        },
+        xAxis: {
+          type: "category",
+          data: this.eventRankingData.map((e) => e.name),
+        },
+        yAxis: {
+          type: "value",
+        },
+        series: [
+          {
+            name: "Success",
+            type: "bar",
+            stack: "Total",
+            data: this.eventRankingData.map((e) => e.success),
+            itemStyle: {
+              color: "#4CAF50", // Green for success
+            },
+          },
+          {
+            name: "Failure",
+            type: "bar",
+            stack: "Total",
+            data: this.eventRankingData.map((e) => e.failure),
+            itemStyle: {
+              color: (params) =>
+                this.eventRankingData[params.dataIndex].highlight
+                  ? "#FF5252" // Red for significant failure rate increase
+                  : "#FFC107", // Yellow for normal failure rate
+            },
+          },
+        ],
+      };
+      chart.setOption(option);
+    },
+  },
+};
+</script>
+
+<style scoped>
+/* Add styles here if needed */
+</style>
+
+dfadkfasd
+
+<template>
   <v-app>
     <!-- Top App Bar -->
     <v-app-bar app color="primary" dark>
