@@ -1,3 +1,24 @@
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        // 设置允许跨域访问的路径
+        registry.addMapping("/**")
+                .allowedOrigins("http://localhost:3000", "http://example.com") // 允许跨域的来源
+                .allowedMethods("GET", "POST", "PUT", "DELETE") // 允许的方法
+                .allowedHeaders("*") // 允许的请求头
+                .allowCredentials(true) // 是否允许带上认证信息（如cookies）
+                .maxAge(3600); // 预检请求的有效期，单位为秒
+    }
+}
+
+
+
 // src/main/java/com/hsbc/mca/smarteda_dashboard/SmartedaDashboardApplication.java
 
 package com.hsbc.mca.smarteda_dashboard;
