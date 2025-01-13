@@ -1,3 +1,545 @@
+<template>
+  <v-container fluid>
+    <!-- Date Picker -->
+    <v-row class="mb-5">
+      <v-col cols="12" sm="6" md="4">
+        <v-menu
+          v-model="menu"
+          :close-on-content-click="false"
+          transition="scale-transition"
+          offset-y
+          min-width="290px"
+        >
+          <template v-slot:activator="{ on, attrs }">
+            <v-text-field
+              v-model="selectedDate"
+              label="Select Date"
+              prepend-icon="mdi-calendar"
+              readonly
+              v-bind="attrs"
+              v-on="on"
+            ></v-text-field>
+          </template>
+          <v-date-picker
+            v-model="selectedDate"
+            @input="menu = false"
+            :max="today"
+          ></v-date-picker>
+        </v-menu>
+      </v-col>
+    </v-row>
+
+    <!-- Metrics Cards -->
+    <v-row>
+      <!-- Total Events -->
+      <v-col cols="12" sm="6" md="4">
+        <v-card outlined class="pa-4">
+          <v-row align="center">
+            <v-col cols="3">
+              <v-icon large color="primary">mdi-counter</v-icon>
+            </v-col>
+            <v-col cols="9">
+              <div class="text-h5">{{ metrics.totalEvents }}</div>
+              <div class="caption">Last Minute Increase: {{ metrics.totalEventsIncrement }}</div>
+              <div class="caption">Total Events Today</div>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+
+      <!-- Successful Events -->
+      <v-col cols="12" sm="6" md="4">
+        <v-card outlined class="pa-4">
+          <v-row align="center">
+            <v-col cols="3">
+              <v-icon large color="success">mdi-check-circle</v-icon>
+            </v-col>
+            <v-col cols="9">
+              <div class="text-h5">{{ metrics.successfulEvents }}</div>
+              <div class="caption">Last Minute Increase: {{ metrics.successfulEventsIncrement }}</div>
+              <div class="caption">Successful Events</div>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+
+      <!-- Failed Events -->
+      <v-col cols="12" sm="6" md="4">
+        <v-card outlined class="pa-4">
+          <v-row align="center">
+            <v-col cols="3">
+              <v-icon large color="red">mdi-close-circle</v-icon>
+            </v-col>
+            <v-col cols="9">
+              <div class="text-h5">{{ metrics.failedEvents }}</div>
+              <div class="caption">Last Minute Increase: {{ metrics.failedEventsIncrement }}</div>
+              <div class="caption">Failed Events</div>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+
+      <!-- Failure Rate -->
+      <v-col cols="12" sm="6" md="4">
+        <v-card outlined class="pa-4">
+          <v-row align="center">
+            <v-col cols="3">
+              <v-icon large color="orange">mdi-percent</v-icon>
+            </v-col>
+            <v-col cols="9">
+              <div class="text-h5">{{ metrics.failureRate }}%</div>
+              <div class="caption">Calculated from today's events</div>
+              <div class="caption">Failure Rate</div>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+
+      <!-- EDA Backlog -->
+      <v-col cols="12" sm="6" md="4">
+        <v-card outlined class="pa-4">
+          <v-row align="center">
+            <v-col cols="3">
+              <v-icon large color="purple">mdi-truck-delivery</v-icon>
+            </v-col>
+            <v-col cols="9">
+              <div class="text-h5">{{ metrics.edaBacklog }}</div>
+              <div class="caption">Last Minute Increase: {{ metrics.edaBacklogIncrement }}</div>
+              <div class="caption">EDA Backlog</div>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+
+      <!-- HUB Backlog -->
+      <v-col cols="12" sm="6" md="4">
+        <v-card outlined class="pa-4">
+          <v-row align="center">
+            <v-col cols="3">
+              <v-icon large color="teal">mdi-truck-delivery</v-icon>
+            </v-col>
+            <v-col cols="9">
+              <div class="text-h5">{{ metrics.hubBacklog }}</div>
+              <div class="caption">Last Minute Increase: {{ metrics.hubBacklogIncrement }}</div>
+              <div class="caption">HUB Backlog</div>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Charts Section -->
+    <v-row>
+      <!-- Top 10 Events by Volume -->
+      <v-col cols="12" md="6">
+        <v-card outlined>
+          <v-card-title>Top 10 Events by Volume</v-card-title>
+          <v-card-text>
+            <div ref="topEventsChart" style="height: 400px;"></div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- Top 10 Events with High Delays -->
+      <v-col cols="12" md="6">
+        <v-card outlined>
+          <v-card-title>Top 10 Events with High Delays</v-card-title>
+          <v-card-text>
+            <div ref="highDelaysChart" style="height: 400px;"></div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- EDA Backlog Trend -->
+      <v-col cols="12" md="6">
+        <v-card outlined>
+          <v-card-title>EDA Backlog Trend</v-card-title>
+          <v-card-text>
+            <div ref="edaBacklogChart" style="height: 300px;"></div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- HUB Backlog Trend -->
+      <v-col cols="12" md="6">
+        <v-card outlined>
+          <v-card-title>HUB Backlog Trend</v-card-title>
+          <v-card-text>
+            <div ref="hubBacklogChart" style="height: 300px;"></div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+<script>
+import * as echarts from "echarts";
+
+export default {
+  name: "Overview",
+  data() {
+    return {
+      menu: false, // Controls the date picker menu
+      selectedDate: this.formatDate(new Date()), // Default to today's date
+      today: this.formatDate(new Date()), // Today's date for max date in date picker
+
+      // Metrics data
+      metrics: {
+        totalEvents: 1000,
+        totalEventsIncrement: 15,
+        successfulEvents: 800,
+        successfulEventsIncrement: 12,
+        failedEvents: 200,
+        failedEventsIncrement: 3,
+        failureRate: 20,
+        edaBacklog: 500,
+        edaBacklogIncrement: 10,
+        hubBacklog: 300,
+        hubBacklogIncrement: 8,
+      },
+
+      // Mock data for charts
+      topEventsData: [
+        { name: "Event A", value: 150 },
+        { name: "Event B", value: 120 },
+        { name: "Event C", value: 100 },
+        { name: "Event D", value: 90 },
+        { name: "Event E", value: 80 },
+        { name: "Event F", value: 70 },
+        { name: "Event G", value: 60 },
+        { name: "Event H", value: 50 },
+        { name: "Event I", value: 40 },
+        { name: "Event J", value: 30 },
+      ],
+      highDelaysData: [
+        { name: "Event X", value: 300 },
+        { name: "Event Y", value: 250 },
+        { name: "Event Z", value: 200 },
+        { name: "Event W", value: 180 },
+        { name: "Event V", value: 160 },
+        { name: "Event U", value: 140 },
+        { name: "Event T", value: 120 },
+        { name: "Event S", value: 100 },
+        { name: "Event R", value: 80 },
+        { name: "Event Q", value: 60 },
+      ],
+      edaBacklogTrend: [
+        { time: "00:00", backlog: 500 },
+        { time: "06:00", backlog: 520 },
+        { time: "12:00", backlog: 480 },
+        { time: "18:00", backlog: 530 },
+        { time: "24:00", backlog: 500 },
+      ],
+      hubBacklogTrend: [
+        { time: "00:00", backlog: 300 },
+        { time: "06:00", backlog: 310 },
+        { time: "12:00", backlog: 290 },
+        { time: "18:00", backlog: 320 },
+        { time: "24:00", backlog: 300 },
+      ],
+    };
+  },
+  mounted() {
+    this.renderCharts();
+    this.startRealTimeUpdates();
+  },
+  beforeUnmount() {
+    clearInterval(this.updateInterval);
+  },
+  methods: {
+    /**
+     * Formats a Date object to 'yyyy-MM-dd' string.
+     * @param {Date} date 
+     * @returns {String}
+     */
+    formatDate(date) {
+      const year = date.getFullYear();
+      const month = (`0${date.getMonth() + 1}`).slice(-2);
+      const day = (`0${date.getDate()}`).slice(-2);
+      return `${year}-${month}-${day}`;
+    },
+
+    /**
+     * Renders all charts using ECharts.
+     */
+    renderCharts() {
+      this.renderTopEventsChart();
+      this.renderHighDelaysChart();
+      this.renderEdaBacklogTrendChart();
+      this.renderHubBacklogTrendChart();
+    },
+
+    /**
+     * Renders the Top 10 Events by Volume chart.
+     */
+    renderTopEventsChart() {
+      const chart = echarts.init(this.$refs.topEventsChart);
+      const option = {
+        title: {
+          text: "Top 10 Events by Volume",
+          left: "center",
+        },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" },
+        },
+        xAxis: {
+          type: "category",
+          data: this.topEventsData.map(item => item.name),
+          axisLabel: {
+            rotate: 45,
+            interval: 0,
+          },
+        },
+        yAxis: {
+          type: "value",
+        },
+        series: [
+          {
+            name: "Volume",
+            type: "bar",
+            data: this.topEventsData.map(item => item.value),
+            itemStyle: {
+              color: "#3f51b5",
+            },
+          },
+        ],
+      };
+      chart.setOption(option);
+      window.addEventListener("resize", () => chart.resize());
+    },
+
+    /**
+     * Renders the Top 10 Events with High Delays chart.
+     */
+    renderHighDelaysChart() {
+      const chart = echarts.init(this.$refs.highDelaysChart);
+      const option = {
+        title: {
+          text: "Top 10 Events with High Delays",
+          left: "center",
+        },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" },
+        },
+        xAxis: {
+          type: "category",
+          data: this.highDelaysData.map(item => item.name),
+          axisLabel: {
+            rotate: 45,
+            interval: 0,
+          },
+        },
+        yAxis: {
+          type: "value",
+        },
+        series: [
+          {
+            name: "Delay (ms)",
+            type: "bar",
+            data: this.highDelaysData.map(item => item.value),
+            itemStyle: {
+              color: "#f44336",
+            },
+          },
+        ],
+      };
+      chart.setOption(option);
+      window.addEventListener("resize", () => chart.resize());
+    },
+
+    /**
+     * Renders the EDA Backlog Trend chart.
+     */
+    renderEdaBacklogTrendChart() {
+      const chart = echarts.init(this.$refs.edaBacklogChart);
+      const option = {
+        title: {
+          text: "EDA Backlog Trend",
+          left: "center",
+        },
+        tooltip: {
+          trigger: "axis",
+        },
+        xAxis: {
+          type: "category",
+          data: this.edaBacklogTrend.map(item => item.time),
+        },
+        yAxis: {
+          type: "value",
+        },
+        series: [
+          {
+            name: "EDA Backlog",
+            type: "line",
+            data: this.edaBacklogTrend.map(item => item.backlog),
+            smooth: true,
+            itemStyle: {
+              color: "#9c27b0",
+            },
+            areaStyle: {
+              color: "rgba(156, 39, 176, 0.2)",
+            },
+          },
+        ],
+      };
+      chart.setOption(option);
+      window.addEventListener("resize", () => chart.resize());
+    },
+
+    /**
+     * Renders the HUB Backlog Trend chart.
+     */
+    renderHubBacklogTrendChart() {
+      const chart = echarts.init(this.$refs.hubBacklogChart);
+      const option = {
+        title: {
+          text: "HUB Backlog Trend",
+          left: "center",
+        },
+        tooltip: {
+          trigger: "axis",
+        },
+        xAxis: {
+          type: "category",
+          data: this.hubBacklogTrend.map(item => item.time),
+        },
+        yAxis: {
+          type: "value",
+        },
+        series: [
+          {
+            name: "HUB Backlog",
+            type: "line",
+            data: this.hubBacklogTrend.map(item => item.backlog),
+            smooth: true,
+            itemStyle: {
+              color: "#009688",
+            },
+            areaStyle: {
+              color: "rgba(0, 150, 136, 0.2)",
+            },
+          },
+        ],
+      };
+      chart.setOption(option);
+      window.addEventListener("resize", () => chart.resize());
+    },
+
+    /**
+     * Starts real-time updates for metrics and charts.
+     */
+    startRealTimeUpdates() {
+      // Simulate real-time data updates every minute
+      this.updateInterval = setInterval(() => {
+        this.updateMetrics();
+        this.updateCharts();
+      }, 60000); // 60000 ms = 1 minute
+    },
+
+    /**
+     * Updates metrics with mock data.
+     */
+    updateMetrics() {
+      // Simulate metric increments
+      this.metrics.totalEvents += this.getRandomInt(5, 20);
+      this.metrics.totalEventsIncrement = this.getRandomInt(5, 20);
+
+      this.metrics.successfulEvents += this.getRandomInt(3, 15);
+      this.metrics.successfulEventsIncrement = this.getRandomInt(3, 15);
+
+      this.metrics.failedEvents += this.getRandomInt(1, 10);
+      this.metrics.failedEventsIncrement = this.getRandomInt(1, 10);
+
+      // Recalculate failure rate
+      const total = this.metrics.successfulEvents + this.metrics.failedEvents;
+      this.metrics.failureRate = total > 0 ? ((this.metrics.failedEvents / total) * 100).toFixed(2) : 0;
+
+      this.metrics.edaBacklog += this.getRandomInt(2, 10);
+      this.metrics.edaBacklogIncrement = this.getRandomInt(2, 10);
+
+      this.metrics.hubBacklog += this.getRandomInt(1, 8);
+      this.metrics.hubBacklogIncrement = this.getRandomInt(1, 8);
+    },
+
+    /**
+     * Updates charts with new mock data.
+     */
+    updateCharts() {
+      // Update Top Events Chart
+      this.topEventsData = this.topEventsData.map(item => ({
+        ...item,
+        value: item.value + this.getRandomInt(1, 10),
+      }));
+      this.renderTopEventsChart();
+
+      // Update High Delays Chart
+      this.highDelaysData = this.highDelaysData.map(item => ({
+        ...item,
+        value: item.value + this.getRandomInt(5, 20),
+      }));
+      this.renderHighDelaysChart();
+
+      // Update EDA Backlog Trend
+      const currentTime = this.getCurrentTime();
+      this.edaBacklogTrend.push({ time: currentTime, backlog: this.metrics.edaBacklog });
+      if (this.edaBacklogTrend.length > 10) this.edaBacklogTrend.shift();
+      this.renderEdaBacklogTrendChart();
+
+      // Update HUB Backlog Trend
+      this.hubBacklogTrend.push({ time: currentTime, backlog: this.metrics.hubBacklog });
+      if (this.hubBacklogTrend.length > 10) this.hubBacklogTrend.shift();
+      this.renderHubBacklogTrendChart();
+    },
+
+    /**
+     * Generates a random integer between min and max (inclusive).
+     * @param {Number} min 
+     * @param {Number} max 
+     * @returns {Number}
+     */
+    getRandomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    },
+
+    /**
+     * Gets the current time in 'HH:mm' format.
+     * @returns {String}
+     */
+    getCurrentTime() {
+      const now = new Date();
+      const hours = (`0${now.getHours()}`).slice(-2);
+      const minutes = (`0${now.getMinutes()}`).slice(-2);
+      return `${hours}:${minutes}`;
+    },
+  },
+};
+</script>
+
+<style scoped>
+/* Style for Metric Cards */
+.v-card {
+  transition: transform 0.3s;
+}
+.v-card:hover {
+  transform: translateY(-5px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .v-card-title {
+    font-size: 1.2rem;
+  }
+  .text-h5 {
+    font-size: 1.5rem;
+  }
+}
+</style>
+
+
+
 // src/services/api.js
 
 import axios from 'axios';
