@@ -1,3 +1,105 @@
+
+-----------------
+package com.yourpackage;
+
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.core.exceptions.MybatisPlusException;
+import com.baomidou.mybatisplus.generator.AutoGenerator;
+import com.baomidou.mybatisplus.generator.config.*;
+import com.baomidou.mybatisplus.generator.config.rules.NamingStrategy;
+import java.util.Scanner;
+
+public class CodeGenerator {
+    public static String scanner(String tip) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Please enter the " + tip + ": ");
+        if(scanner.hasNext()){
+            String ipt = scanner.next();
+            if(ipt != null && !"".equals(ipt)){
+                return ipt;
+            }
+        }
+        throw new MybatisPlusException("Input cannot be empty!");
+    }
+
+    public static void main(String[] args) {
+        // 1. Global Configuration
+        AutoGenerator mpg = new AutoGenerator();
+        GlobalConfig gc = new GlobalConfig();
+        String projectPath = System.getProperty("user.dir");
+        gc.setOutputDir(projectPath + "/src/main/java");
+        gc.setAuthor("YourName");
+        gc.setOpen(false);
+        gc.setServiceName("%sService"); // Remove 'I' prefix from service interface
+        gc.setBaseResultMap(true);
+        gc.setBaseColumnList(true);
+        mpg.setGlobalConfig(gc);
+
+        // 2. Data Source Configuration
+        DataSourceConfig dsc = new DataSourceConfig();
+        dsc.setUrl("jdbc:mysql://localhost:3306/your_database?useUnicode=true&useSSL=false&characterEncoding=utf8&serverTimezone=UTC");
+        dsc.setDriverName("com.mysql.cj.jdbc.Driver");
+        dsc.setUsername("your_username");
+        dsc.setPassword("your_password");
+        dsc.setDbType(DbType.MYSQL);
+        mpg.setDataSource(dsc);
+
+        // 3. Package Configuration
+        PackageConfig pc = new PackageConfig();
+        pc.setModuleName(scanner("module name")); // e.g., 'event'
+        pc.setParent("com.yourpackage");
+        pc.setEntity("entity");
+        pc.setMapper("mapper");
+        pc.setService("service");
+        pc.setServiceImpl("service.impl");
+        pc.setController("controller");
+        mpg.setPackageInfo(pc);
+
+        // 4. Strategy Configuration
+        StrategyConfig strategy = new StrategyConfig();
+        strategy.setNaming(NamingStrategy.underline_to_camel);
+        strategy.setColumnNaming(NamingStrategy.underline_to_camel);
+        strategy.setEntityLombokModel(true);
+        strategy.setRestControllerStyle(true);
+        strategy.setInclude(scanner("table name (comma-separated)")); // e.g., 'event'
+        strategy.setControllerMappingHyphenStyle(true);
+        strategy.setTablePrefix(pc.getModuleName() + "_");
+        mpg.setStrategy(strategy);
+
+        // 5. Execute Code Generation
+        mpg.execute();
+    }
+}
+
+-------------
+package com.yourpackage.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.yourpackage.entity.Event;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface EventMapper extends BaseMapper<Event> {
+    // You can add custom methods here if needed
+}
+
+-------------
+package com.yourpackage;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.mybatis.spring.annotation.MapperScan;
+
+@SpringBootApplication
+@MapperScan("com.yourpackage.mapper") // Adjust the package path accordingly
+public class YourApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(YourApplication.class, args);
+    }
+}
+---------------
+
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
