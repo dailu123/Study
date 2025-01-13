@@ -1,3 +1,23 @@
+<dependencies>
+    <!-- MyBatis Plus Starter -->
+    <dependency>
+        <groupId>com.baomidou</groupId>
+        <artifactId>mybatis-plus-boot-starter</artifactId>
+        <version>3.5.3</version> <!-- Check for the latest version -->
+    </dependency>
+
+    <!-- MySQL Connector (if using MySQL) -->
+    <dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+        <version>8.0.33</version> <!-- Check for the latest version -->
+    </dependency>
+
+    <!-- Other dependencies -->
+    <!-- ... -->
+</dependencies>
+
+
 <!-- pom.xml -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
