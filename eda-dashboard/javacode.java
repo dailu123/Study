@@ -1,3 +1,114 @@
+package com.yourpackage.util;
+
+import org.springframework.util.StreamUtils;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+
+public class SqlFileLoader {
+
+    /**
+     * Load a single SQL file and replace placeholders with parameters.
+     *
+     * @param filePath Path to the SQL file.
+     * @param params   Map of placeholder values.
+     * @return SQL string with placeholders replaced.
+     * @throws IOException If the file cannot be loaded.
+     */
+    public static String loadSql(String filePath, Map<String, Object> params) throws IOException {
+        // Load SQL file content
+        String sql = StreamUtils.copyToString(
+            SqlFileLoader.class.getClassLoader().getResourceAsStream(filePath),
+            StandardCharsets.UTF_8
+        );
+
+        // Replace placeholders in the SQL
+        for (Map.Entry<String, Object> entry : params.entrySet()) {
+            String placeholder = ":" + entry.getKey();
+            sql = sql.replace(placeholder, entry.getValue().toString());
+        }
+
+        return sql;
+    }
+}
+
+
+package com.yourpackage.repository;
+
+import com.yourpackage.entity.Event;
+import com.yourpackage.util.SqlFileLoader;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Repository
+public interface EventRepository extends JpaRepository<Event, Long>, CustomEventRepository {
+}
+
+interface CustomEventRepository {
+    List<Object[]> fetchEvents(String tableName, String startDate, String endDate);
+
+    int insertEvent(String tableName, String eventName, int successCount, int failureCount, double failureRate);
+}
+
+@Repository
+class CustomEventRepositoryImpl implements CustomEventRepository {
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Override
+    public List<Object[]> fetchEvents(String tableName, String startDate, String endDate) {
+        try {
+            // Prepare parameters
+            Map<String, Object> params = new HashMap<>();
+            params.put("tableName", tableName);
+            params.put("startDate", startDate);
+            params.put("endDate", endDate);
+
+            // Load SQL from file
+            String sql = SqlFileLoader.loadSql("sql/fetch-events.sql", params);
+
+            // Execute query
+            Query query = entityManager.createNativeQuery(sql);
+            return query.getResultList();
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load SQL file", e);
+        }
+    }
+
+    @Override
+    public int insertEvent(String tableName, String eventName, int successCount, int failureCount, double failureRate) {
+        try {
+            // Prepare parameters
+            Map<String, Object> params = new HashMap<>();
+            params.put("tableName", tableName);
+            params.put("eventName", "'" + eventName + "'");
+            params.put("successCount", successCount);
+            params.put("failureCount", failureCount);
+            params.put("failureRate", failureRate);
+
+            // Load SQL from file
+            String sql = SqlFileLoader.loadSql("sql/insert-event.sql", params);
+
+            // Execute update
+            Query query = entityManager.createNativeQuery(sql);
+            return query.executeUpdate();
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load SQL file", e);
+        }
+    }
+}
 
 -----------------
 package com.yourpackage;
