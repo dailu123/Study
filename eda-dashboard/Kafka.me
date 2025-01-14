@@ -1,0 +1,45 @@
+Here’s the corrected version of your text:
+
+"The CFK is our key service, and we need to identify several metrics from it. Please find the metrics below:
+
+Subscriber status for each consumer group subscribing to each topic.
+Accumulated messages for each consumer group.
+Produce/consume latency.
+Produce/consume volume."
+Let me know if you need further adjustments!
+
+
+
+
+
+
+您说：
+if any more kafka metrix we need to tracker?
+ChatGPT 说：
+ChatGPT
+Here are some additional Kafka metrics you might want to track, depending on your use case:
+
+Consumer Lag: The lag of each consumer group, which indicates how far behind they are in processing messages relative to the latest message in the topic.
+
+Message Processing Time: The average time it takes for a message to be processed by a consumer after being produced to a Kafka topic.
+
+Broker Health: Metrics on the health of the Kafka brokers, including the number of active brokers, broker availability, and broker disk usage.
+
+Partition Reassignment: Tracking of any partition reassignments, which can indicate potential issues with load balancing.
+
+Under-replicated Partitions: The number of partitions that have fewer than the expected number of replicas, which could indicate replication issues.
+
+Disk I/O and Memory Usage: Monitoring the disk I/O and memory consumption of Kafka brokers to ensure they aren't becoming resource-constrained.
+
+Producer Error Rate: The rate at which producers are encountering errors while producing messages (e.g., failed requests, timeouts).
+
+Consumer Throughput: The rate at which messages are consumed by each consumer group.
+
+Active Connections: The number of active producer and consumer connections to each Kafka broker.
+
+Topic Size: The total size of each topic, which can help with capacity planning and detecting bottlenecks.
+
+Replication Lag: How far behind the replicas are compared to the leader, indicating any replication delays.
+
+Message Retention: The rate at which messages are being deleted from topics based on retention policies.
+
