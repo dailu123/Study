@@ -1,0 +1,178 @@
+"""
+git_diffs_to_excel.py
+
+This script uses GitPython to iterate through all commits in a local Git repository
+and retrieve the diff content (patch) for each commit. Then it writes the diff
+into an Excel file using openpyxl. Lines added are highlighted in green, lines
+removed are highlighted in red, and other lines (context or file info) are in gray.
+
+Usage:
+    1. Make sure to have GitPython and openpyxl installed:
+       pip install GitPython openpyxl
+
+    2. Place this script in your repository or specify the repository path in the code.
+    3. Run the script with:
+       python git_diffs_to_excel.py
+
+    4. An Excel file named "git_diffs.xlsx" will be generated in the current directory.
+"""
+
+import os
+from git import Repo
+import openpyxl
+from openpyxl.styles import PatternFill
+
+# Define some color fills for different types of lines in the diff
+FILL_ADDED = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')   # Light green
+FILL_REMOVED = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid') # Light red
+FILL_CONTEXT = PatternFill(start_color='DDDDDD', end_color='DDDDDD', fill_type='solid') # Gray
+
+
+def get_repo(repo_path="."):
+    """
+    Initialize and return a Repo object for the given path.
+    If no path is provided, defaults to the current directory.
+    """
+    # Check if the provided path is a valid git repository
+    if not os.path.exists(repo_path):
+        raise FileNotFoundError(f"Path does not exist: {repo_path}")
+    repo = Repo(repo_path)
+    if repo.bare:
+        raise Exception(f"Repository at '{repo_path}' is bare. Please provide a working directory.")
+    return repo
+
+
+def get_all_commits(repo, branch="master"):
+    """
+    Return a list of all commits in the given branch.
+    The commits are returned in reverse chronological order (newest first).
+    """
+    commits = list(repo.iter_commits(branch))
+    return commits
+
+
+def write_diff_to_worksheet(ws, diff_text, start_row):
+    """
+    Write the given diff text (str) to the provided worksheet (ws) starting at 'start_row'.
+    Each line is colored according to whether it is added, removed, or context.
+
+    Returns the next available row after writing the diff.
+    """
+    lines = diff_text.splitlines()
+    current_row = start_row
+
+    # Optional: Write a "Diff Start" marker
+    ws.cell(row=current_row, column=1, value="==== Diff Start ====").fill = FILL_CONTEXT
+    current_row += 1
+
+    for line in lines:
+        cell = ws.cell(row=current_row, column=1, value=line)
+
+        # If it's an added line (and not a file indicator line like '+++')
+        if line.startswith('+') and not line.startswith('+++'):
+            cell.fill = FILL_ADDED
+        
+        # If it's a removed line (and not a file indicator line like '---')
+        elif line.startswith('-') and not line.startswith('---'):
+            cell.fill = FILL_REMOVED
+        
+        else:
+            # Otherwise treat it as context or file info
+            cell.fill = FILL_CONTEXT
+
+        current_row += 1
+
+    # Optional: Write a "Diff End" marker
+    ws.cell(row=current_row, column=1, value="==== Diff End ====").fill = FILL_CONTEXT
+    current_row += 1
+
+    return current_row
+
+
+def main():
+    # 1. Specify the local git repository path. Default: current directory.
+    #    Update this if your script is outside the repo or if you want a different repo.
+    repo_path = "."
+    repo = get_repo(repo_path)
+
+    # 2. Choose the branch or reference you want to inspect, e.g. "master" or "main".
+    branch_name = "master"
+    commits = get_all_commits(repo, branch=branch_name)
+    print(f"Total commits found in branch '{branch_name}': {len(commits)}")
+
+    # 3. Create a new Excel workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Git Diffs"
+
+    current_row = 1
+
+    # 4. Iterate over each commit and get its diff vs. its first parent (if any)
+    for i, commit in enumerate(commits, start=1):
+        # Some commits (like the very first) may have no parents
+        if not commit.parents:
+            # If there's no parent, we skip or handle it differently
+            # For example, just note that it's an initial commit
+            ws.cell(row=current_row, column=1, value=f"Commit {commit.hexsha} (No parent)")
+            ws.cell(row=current_row, column=1).fill = FILL_CONTEXT
+            current_row += 2
+            continue
+
+        # We'll just take the first parent in case of merges
+        parent = commit.parents[0]
+
+        # Use GitPython's diff API with create_patch=True to get the unified diff text
+        diffs = parent.diff(commit, create_patch=True)
+
+        # Write a header for this commit
+        commit_header = f"Commit: {commit.hexsha}"
+        ws.cell(row=current_row, column=1, value=commit_header)
+        current_row += 1
+
+        # Optionally write commit metadata (message, author, date) 
+        # to help identify or filter changes
+        ws.cell(row=current_row, column=1, value=f"Author: {commit.author.name} <{commit.author.email}>")
+        current_row += 1
+        ws.cell(row=current_row, column=1, value=f"Date: {commit.committed_datetime}")
+        current_row += 1
+        ws.cell(row=current_row, column=1, value=f"Message: {commit.message.strip()}")
+        current_row += 2
+
+        # 5. For each file changed in the diff, extract the diff text and write to Excel
+        for diff in diffs:
+            # Each diff object represents changes to a single file
+            # Some diffs might have no patch content, especially for renames
+            if diff.diff:
+                # Decode patch (bytes) to string
+                diff_text = diff.diff.decode('utf-8', errors='ignore')
+
+                # Write a sub-header with the file name
+                if diff.a_path != diff.b_path:
+                    file_info = f"File: {diff.a_path} => {diff.b_path}"
+                else:
+                    file_info = f"File: {diff.a_path}"
+                ws.cell(row=current_row, column=1, value=file_info).fill = FILL_CONTEXT
+                current_row += 1
+
+                # Write the patch lines
+                current_row = write_diff_to_worksheet(ws, diff_text, current_row)
+
+                # Add a blank line after each file's diff
+                current_row += 1
+
+        # Optionally, limit the number of commits if needed
+        # if i >= 10:
+        #     break
+
+        # Add a separator after each commit
+        ws.cell(row=current_row, column=1, value="="*80).fill = FILL_CONTEXT
+        current_row += 2
+
+    # 6. Save the Excel file
+    output_file = "git_diffs.xlsx"
+    wb.save(output_file)
+    print(f"Diffs have been written to '{output_file}'.")
+
+
+if __name__ == "__main__":
+    main()
