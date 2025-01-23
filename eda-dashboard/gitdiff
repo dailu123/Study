@@ -21,6 +21,95 @@ def get_recent_commits(repo, branch="master", count=3):
     """
     return list(repo.iter_commits(branch, max_count=count))
 
+def generate_confluence_table(file_path, old_content, new_content):
+    """
+    Generate a Confluence Wiki Markup table showing side-by-side diffs of old and new content.
+    Includes an additional editable column for "Responsible Person".
+    """
+    diff = unified_diff(
+        old_content.splitlines(),
+        new_content.splitlines(),
+        lineterm='',
+        fromfile="Before",
+        tofile="After",
+    )
+
+    table_markup = f"h3. File: {file_path}\n"
+    table_markup += "||Before||After||Responsible Person||\n"
+
+    for line in diff:
+        if line.startswith(' '):
+            table_markup += f"|{line[1:]}|{line[1:]}| |\n"
+        elif line.startswith('-'):
+            table_markup += f"|{line[1:]}| | |\n"
+        elif line.startswith('+'):
+            table_markup += f"| |{line[1:]}| |\n"
+
+    table_markup += "\n"
+    return table_markup
+
+def main():
+    repo_path = "."
+    repo = get_repo(repo_path)
+
+    branch_name = "master"
+    recent_commits = get_recent_commits(repo, branch=branch_name, count=3)
+    print(f"Found {len(recent_commits)} recent commits on branch '{branch_name}'.")
+
+    confluence_output = f"h1. Recent Git Diffs - Branch: {branch_name}\n\n"
+
+    for commit in recent_commits:
+        if not commit.parents:
+            confluence_output += f"h2. Commit {commit.hexsha} (No parent)\n\n"
+            continue
+
+        parent = commit.parents[0]
+        diffs = parent.diff(commit, create_patch=True)
+
+        confluence_output += f"h2. Commit: {commit.hexsha}\n"
+        confluence_output += f"*Author:* {commit.author.name} <{commit.author.email}>  \\\n*Date:* {commit.committed_datetime}  \\\n*Message:* {commit.message.strip()}\n\n"
+
+        for diff in diffs:
+            if diff.a_path and diff.b_path and diff.a_blob and diff.b_blob:
+                old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore')
+                new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore')
+                confluence_output += generate_confluence_table(diff.a_path, old_content, new_content)
+
+    output_file = "recent_git_diffs.confluence"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(confluence_output)
+
+    print(f"Recent diffs have been written to '{output_file}'.")
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+import os
+from git import Repo
+from difflib import unified_diff
+
+def get_repo(repo_path="."):
+    """
+    Initialize and return a Repo object for the given path.
+    If no path is provided, defaults to the current directory.
+    """
+    if not os.path.exists(repo_path):
+        raise FileNotFoundError(f"Path does not exist: {repo_path}")
+    repo = Repo(repo_path)
+    if repo.bare:
+        raise Exception(f"Repository at '{repo_path}' is bare. Please provide a working directory.")
+    return repo
+
+def get_recent_commits(repo, branch="master", count=3):
+    """
+    Return the most recent commits from the given branch.
+    Limit the number of commits to 'count'.
+    """
+    return list(repo.iter_commits(branch, max_count=count))
+
 def generate_html_diff(file_path, old_content, new_content):
     """
     Generate an HTML table showing side-by-side diffs of old and new content.
