@@ -21,6 +21,96 @@ def get_recent_commits(repo, branch="master", count=3):
     """
     return list(repo.iter_commits(branch, max_count=count))
 
+def generate_markdown_table(file_path, old_content, new_content):
+    """
+    Generate a Markdown table showing side-by-side diffs of old and new content.
+    Includes an additional editable column for "Responsible Person".
+    """
+    diff = unified_diff(
+        old_content.splitlines(),
+        new_content.splitlines(),
+        lineterm='',
+        fromfile="Before",
+        tofile="After",
+    )
+
+    table_md = f"### File: {file_path}\n\n"
+    table_md += "| Before | After | Responsible Person |\n"
+    table_md += "|--------|-------|--------------------|\n"
+
+    for line in diff:
+        if line.startswith(' '):
+            table_md += f"| {line[1:]} | {line[1:]} | |\n"
+        elif line.startswith('-'):
+            table_md += f"| {line[1:]} |  | |\n"
+        elif line.startswith('+'):
+            table_md += f"|  | {line[1:]} | |\n"
+
+    table_md += "\n"
+    return table_md
+
+def main():
+    repo_path = "."
+    repo = get_repo(repo_path)
+
+    branch_name = "master"
+    recent_commits = get_recent_commits(repo, branch=branch_name, count=3)
+    print(f"Found {len(recent_commits)} recent commits on branch '{branch_name}'.")
+
+    markdown_output = f"# Recent Git Diffs - Branch: {branch_name}\n\n"
+
+    for commit in recent_commits:
+        if not commit.parents:
+            markdown_output += f"## Commit {commit.hexsha} (No parent)\n\n"
+            continue
+
+        parent = commit.parents[0]
+        diffs = parent.diff(commit, create_patch=True)
+
+        markdown_output += f"## Commit: {commit.hexsha}\n"
+        markdown_output += f"- **Author:** {commit.author.name} <{commit.author.email}>\n"
+        markdown_output += f"- **Date:** {commit.committed_datetime}\n"
+        markdown_output += f"- **Message:** {commit.message.strip()}\n\n"
+
+        for diff in diffs:
+            if diff.a_path and diff.b_path and diff.a_blob and diff.b_blob:
+                old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore')
+                new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore')
+                markdown_output += generate_markdown_table(diff.a_path, old_content, new_content)
+
+    output_file = "recent_git_diffs.md"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(markdown_output)
+
+    print(f"Recent diffs have been written to '{output_file}'.")
+
+if __name__ == "__main__":
+    main()
+
+
+import os
+from git import Repo
+from difflib import unified_diff
+
+def get_repo(repo_path="."):
+    """
+    Initialize and return a Repo object for the given path.
+    If no path is provided, defaults to the current directory.
+    """
+    if not os.path.exists(repo_path):
+        raise FileNotFoundError(f"Path does not exist: {repo_path}")
+    repo = Repo(repo_path)
+    if repo.bare:
+        raise Exception(f"Repository at '{repo_path}' is bare. Please provide a working directory.")
+    return repo
+
+def get_recent_commits(repo, branch="master", count=3):
+    """
+    Return the most recent commits from the given branch.
+    Limit the number of commits to 'count'.
+    """
+    return list(repo.iter_commits(branch, max_count=count))
+
 def generate_confluence_table(file_path, old_content, new_content):
     """
     Generate a Confluence Wiki Markup table showing side-by-side diffs of old and new content.
