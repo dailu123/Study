@@ -37,7 +37,6 @@ def highlight_diff(old_line, new_line):
     if old_line == new_line:
         return old_line, new_line
 
-    # Perform word-level or substring-level diff to highlight changes
     highlighted_old, highlighted_new = "", ""
     i = 0
     while i < len(old_line) and i < len(new_line):
@@ -88,25 +87,24 @@ def generate_diff_table_rows(old_lines, new_lines, file_path, people):
             before_diff.append("")  # Empty for before
             after_diff.append(f"<span style='background-color: #c6efce;'>{line[2:]}</span>")
 
-    # Join them as a single string
-    before_combined = " / ".join(before_diff)
-    after_combined = " / ".join(after_diff)
+    # Generate HTML for each modified line
+    row_html = []
+    for old_line, new_line in zip(before_diff, after_diff):
+        # Generate responsible person dropdown
+        dropdown_html = "<select>"
+        for p in people:
+            dropdown_html += f"<option value='{p}'>{p}</option>"
+        dropdown_html += "</select>"
 
-    # Generate responsible person dropdown
-    dropdown_html = "<select>"
-    for p in people:
-        dropdown_html += f"<option value='{p}'>{p}</option>"
-    dropdown_html += "</select>"
+        row_html.append(
+            f"<tr>"
+            f"<td>{file_path}</td>"
+            f"<td style='white-space: pre-wrap;'><pre>{old_line}</pre></td>"
+            f"<td style='white-space: pre-wrap;'><pre>{new_line}</pre></td>"
+            f"<td>{dropdown_html}</td>"
+            f"</tr>"
+        )
 
-    # Return the final HTML row
-    row_html = (
-        f"<tr>"
-        f"<td>{file_path}</td>"
-        f"<td style='white-space: pre-wrap;'><pre>{before_combined}</pre></td>"
-        f"<td style='white-space: pre-wrap;'><pre>{after_combined}</pre></td>"
-        f"<td>{dropdown_html}</td>"
-        f"</tr>"
-    )
     return row_html
 
 def main():
@@ -174,9 +172,9 @@ def main():
                 old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore').splitlines()
                 new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore').splitlines()
 
-                # Generate the HTML row for this file's diff
+                # Generate the HTML rows for this file's diff
                 row_html = generate_diff_table_rows(old_content, new_content, diff.a_path, people)
-                html_output += row_html
+                html_output += "".join(row_html)
 
     html_output += "</tbody></table>"
     html_output += "</body></html>"
