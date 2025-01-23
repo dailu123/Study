@@ -21,6 +21,108 @@ def get_recent_commits(repo, branch="master", count=3):
     """
     return list(repo.iter_commits(branch, max_count=count))
 
+def generate_html_diff(file_path, old_content, new_content, people):
+    """
+    Generate an HTML table showing side-by-side diffs of old and new content.
+    Includes an additional dropdown column for "Responsible Person".
+    """
+    diff = unified_diff(
+        old_content.splitlines(),
+        new_content.splitlines(),
+        lineterm='',
+        fromfile="Before",
+        tofile="After",
+    )
+
+    html = f"<h3>File: {file_path}</h3>"
+    html += "<table border='1' style='border-collapse: collapse; width: 100%;'>"
+    html += "<thead><tr><th style='width: 40%;'>Before</th><th style='width: 40%;'>After</th><th style='width: 20%;'>Responsible Person</th></tr></thead><tbody>"
+
+    for line in diff:
+        dropdown = "<select>"
+        for person in people:
+            dropdown += f"<option value='{person}'>{person}</option>"
+        dropdown += "</select>"
+
+        if line.startswith(' '):
+            html += f"<tr><td>{line[1:]}</td><td>{line[1:]}</td><td>{dropdown}</td></tr>"
+        elif line.startswith('-'):
+            html += f"<tr><td style='background-color: #ffc7ce;'>{line[1:]}</td><td></td><td>{dropdown}</td></tr>"
+        elif line.startswith('+'):
+            html += f"<tr><td></td><td style='background-color: #c6efce;'>{line[1:]}</td><td>{dropdown}</td></tr>"
+
+    html += "</tbody></table><br>"
+    return html
+
+def main():
+    repo_path = "."
+    repo = get_repo(repo_path)
+
+    branch_name = "master"
+    recent_commits = get_recent_commits(repo, branch=branch_name, count=3)
+    print(f"Found {len(recent_commits)} recent commits on branch '{branch_name}'.")
+
+    # Pre-defined list of people for dropdown
+    people = ["Alice", "Bob", "Charlie", "David"]
+
+    html_output = "<html><head><style>body { font-family: Arial, sans-serif; }</style></head><body>"
+    html_output += f"<h1>Recent Git Diffs - Branch: {branch_name}</h1>"
+
+    for commit in recent_commits:
+        if not commit.parents:
+            html_output += f"<h2>Commit {commit.hexsha} (No parent)</h2>"
+            continue
+
+        parent = commit.parents[0]
+        diffs = parent.diff(commit, create_patch=True)
+
+        html_output += f"<h2>Commit: {commit.hexsha}</h2>"
+        html_output += f"<p><strong>Author:</strong> {commit.author.name} &lt;{commit.author.email}&gt;<br>"
+        html_output += f"<strong>Date:</strong> {commit.committed_datetime}<br>"
+        html_output += f"<strong>Message:</strong> {commit.message.strip()}</p>"
+
+        for diff in diffs:
+            if diff.a_path and diff.b_path and diff.a_blob and diff.b_blob:
+                old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore')
+                new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore')
+                html_output += generate_html_diff(diff.a_path, old_content, new_content, people)
+
+    html_output += "</body></html>"
+
+    output_file = "recent_git_diffs_with_dropdowns.html"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html_output)
+
+    print(f"Recent diffs have been written to '{output_file}'.")
+
+if __name__ == "__main__":
+    main()
+
+
+
+import os
+from git import Repo
+from difflib import unified_diff
+
+def get_repo(repo_path="."):
+    """
+    Initialize and return a Repo object for the given path.
+    If no path is provided, defaults to the current directory.
+    """
+    if not os.path.exists(repo_path):
+        raise FileNotFoundError(f"Path does not exist: {repo_path}")
+    repo = Repo(repo_path)
+    if repo.bare:
+        raise Exception(f"Repository at '{repo_path}' is bare. Please provide a working directory.")
+    return repo
+
+def get_recent_commits(repo, branch="master", count=3):
+    """
+    Return the most recent commits from the given branch.
+    Limit the number of commits to 'count'.
+    """
+    return list(repo.iter_commits(branch, max_count=count))
+
 def generate_markdown_table(file_path, old_content, new_content):
     """
     Generate a Markdown table showing side-by-side diffs of old and new content.
