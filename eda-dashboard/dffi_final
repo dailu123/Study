@@ -5,19 +5,18 @@ from difflib import unified_diff
 
 def get_repo(repo_path="."):
     """
-    Return a Repo object for the given path.
-    Raise an exception if the path is not a valid Git repository.
+    Initialize and return the Repo object for the given path.
     """
     if not os.path.exists(repo_path):
         raise FileNotFoundError(f"Path does not exist: {repo_path}")
     repo = Repo(repo_path)
     if repo.bare:
-        raise Exception(f"The repository at '{repo_path}' is bare. Please provide a working directory.")
+        raise Exception(f"Repository '{repo_path}' is a bare repository, please provide a working directory path.")
     return repo
 
-def get_commits_in_time_range(repo, branch="master", hours=10):
+def get_commits_in_time_range(repo, branch="master", hours=1):
     """
-    Get commits in the given branch within the last 'hours' range.
+    Get commits from the specified branch within the last 'hours' hours.
     """
     time_limit = datetime.now() - timedelta(hours=hours)
     commits = []
@@ -26,112 +25,149 @@ def get_commits_in_time_range(repo, branch="master", hours=10):
         if commit_time >= time_limit:
             commits.append(commit)
         else:
+            # Since commits are iterated in reverse order (from most recent),
+            # we can break out of the loop when the commit time is older than the time limit.
             break
     return commits
 
-def highlight_diff(old_line, new_line):
+def generate_html_diff(file_path, old_content, new_content, people):
     """
-    Highlight only the changed substring between old_line and new_line.
-    Returns highlighted old and new lines.
+    Generate HTML table rows showing the diff between the old and new content of a file.
+    Includes a dropdown for assigning responsible people for each file change.
     """
-    if old_line == new_line:
-        return old_line, new_line
-
-    highlighted_old, highlighted_new = "", ""
-    i = 0
-    while i < len(old_line) and i < len(new_line):
-        if old_line[i] != new_line[i]:
-            # Highlight differing sections
-            highlighted_old += f"<span style='background-color: #ffc7ce;'>{old_line[i]}</span>"
-            highlighted_new += f"<span style='background-color: #c6efce;'>{new_line[i]}</span>"
-        else:
-            highlighted_old += old_line[i]
-            highlighted_new += new_line[i]
-        i += 1
-
-    # Handle remaining characters
-    while i < len(old_line):
-        highlighted_old += f"<span style='background-color: #ffc7ce;'>{old_line[i]}</span>"
-        i += 1
-    while i < len(new_line):
-        highlighted_new += f"<span style='background-color: #c6efce;'>{new_line[i]}</span>"
-        i += 1
-
-    return highlighted_old, highlighted_new
-
-def generate_diff_table_rows(old_lines, new_lines, file_path, people):
-    """
-    Generate the HTML table row with before/after diff for a file.
-    Each file's change is represented in one row with context and changes highlighted.
-    """
-    # Generate the unified diff with 2 lines of context
-    diff = list(unified_diff(
-        old_lines, new_lines,
-        fromfile="OLD", tofile="NEW", 
+    diff_lines = list(unified_diff(
+        old_content.splitlines(),
+        new_content.splitlines(),
         lineterm='',
-        n=2  # Include 2 lines of context
+        fromfile="Before",
+        tofile="After",
     ))
 
-    # Prepare the lines for before (old) and after (new)
-    before_diff = []
-    after_diff = []
+    # If no differences are found, return an empty string.
+    if not diff_lines:
+        return ""
 
-    for line in diff:
-        if line.startswith(' '):  # Context (unchanged)
-            before_diff.append(line[2:])  # Remove leading space
-            after_diff.append(line[2:])   # Remove leading space
-        elif line.startswith('-'):  # Removed (from old)
-            before_diff.append(f"<span style='background-color: #ffc7ce;'>{line[2:]}</span>")
-            after_diff.append("")  # Empty for after
-        elif line.startswith('+'):  # Added (new)
-            before_diff.append("")  # Empty for before
-            after_diff.append(f"<span style='background-color: #c6efce;'>{line[2:]}</span>")
+    rows = []
+    first_diff_line = True
 
-    # Generate HTML for each modified line
-    row_html = []
-    for old_line, new_line in zip(before_diff, after_diff):
-        # Generate responsible person dropdown
+    for line in diff_lines:
+        # Skip diff metadata lines (e.g. --- +++ @@)
+        if line.startswith('---') or line.startswith('+++') or line.startswith('@@'):
+            continue
+
+        # Generate the "person responsible" dropdown HTML
         dropdown_html = "<select>"
-        for p in people:
-            dropdown_html += f"<option value='{p}'>{p}</option>"
+        for person in people:
+            dropdown_html += f"<option value='{person}'>{person}</option>"
         dropdown_html += "</select>"
 
-        row_html.append(
-            f"<tr>"
-            f"<td>{file_path}</td>"
-            f"<td style='white-space: pre-wrap;'><pre>{old_line}</pre></td>"
-            f"<td style='white-space: pre-wrap;'><pre>{new_line}</pre></td>"
-            f"<td>{dropdown_html}</td>"
-            f"</tr>"
-        )
+        # Escape special characters for HTML safety
+        safe_line_content = (line[1:].replace('<', '&lt;').replace('>', '&gt;'))
 
-    return row_html
+        if line.startswith('-'):  # Line deleted in the old file
+            if first_diff_line:
+                row = (
+                    f"<tr>"
+                    f"<td rowspan='1'>{file_path}</td>"
+                    f"<td style='background-color: #ffc7ce;'>{safe_line_content}</td>"
+                    f"<td></td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+                first_diff_line = False
+            else:
+                row = (
+                    f"<tr>"
+                    f"<td style='background-color: #ffc7ce;'>{safe_line_content}</td>"
+                    f"<td></td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+            rows.append(row)
+
+        elif line.startswith('+'):  # Line added in the new file
+            if first_diff_line:
+                row = (
+                    f"<tr>"
+                    f"<td rowspan='1'>{file_path}</td>"
+                    f"<td></td>"
+                    f"<td style='background-color: #c6efce;'>{safe_line_content}</td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+                first_diff_line = False
+            else:
+                row = (
+                    f"<tr>"
+                    f"<td></td>"
+                    f"<td style='background-color: #c6efce;'>{safe_line_content}</td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+            rows.append(row)
+
+        else:  # Context line or unchanged line
+            safe_line_content = line.lstrip(' ')
+            safe_line_content = safe_line_content.replace('<', '&lt;').replace('>', '&gt;')
+            if first_diff_line:
+                row = (
+                    f"<tr>"
+                    f"<td rowspan='1'>{file_path}</td>"
+                    f"<td colspan='2'>{safe_line_content}</td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+                first_diff_line = False
+            else:
+                row = (
+                    f"<tr>"
+                    f"<td colspan='2'>{safe_line_content}</td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+            rows.append(row)
+
+    # Adjust the first row's 'rowspan' so that the file name is only shown once
+    if rows:
+        total_rows = len(rows)
+        first_row = rows[0]
+        if "rowspan='1'" in first_row:
+            first_row = first_row.replace("rowspan='1'", f"rowspan='{total_rows}'")
+        rows[0] = first_row
+
+        # Remove repeated file path columns in subsequent rows
+        for i in range(1, total_rows):
+            rows[i] = rows[i].replace(f"<tr><td rowspan='1'>{file_path}</td>", "<tr>")
+
+    return "\n".join(rows)
 
 def main():
-    # Hardcoded configurations
-    repo_path = r"C:\work\github_repo\smarteda-terminal"
-    branch_name = "feature/autosync-jdk17"
-    hours_range = 10  # Recently 10 hours
-    folder_prefix = "formatted-xml"  # Only files starting with "formatted-xml"
-
-    # Initialize repo and get recent commits
+    repo_path = "."
     repo = get_repo(repo_path)
-    commits = get_commits_in_time_range(repo, branch=branch_name, hours=hours_range)
-    print(f"Found {len(commits)} commits in the last {hours_range} hour(s) on branch '{branch_name}'.")
 
-    # Pre-defined list of responsible persons
+    # Example: change the branch name as needed
+    branch_name = "master"
+    # Get commits from the last 1 hour
+    commits = get_commits_in_time_range(repo, branch=branch_name, hours=1)
+    print(f"Found {len(commits)} commits in the last 1 hour on branch '{branch_name}'.")
+
+    # Predefined list of people to assign as responsible for the changes
     people = ["Alice", "Bob", "Charlie", "David"]
+    
+    # Specify which files or directories to include (e.g., only look at changes in src/, docs/, and README.md)
+    paths_to_include = ["src/", "docs/", "README.md"]
 
-    # Basic HTML page structure
+    # Specify which files or directories to exclude
+    exclude_paths = ["tests/", "build/"]
+
+    # Create the basic structure of the HTML page
     html_output = """
 <html>
 <head>
 <meta charset="utf-8"/>
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { margin-bottom: 10px; }
     table {
         border-collapse: collapse;
         width: 100%;
@@ -140,51 +176,59 @@ def main():
     th, td {
         border: 1px solid #ccc;
         padding: 8px;
-        text-align: left;
         vertical-align: top;
     }
     th {
         background-color: #f2f2f2;
     }
-    h1 {
-        margin-bottom: 10px;
-    }
 </style>
 </head>
 <body>
 """
-    html_output += f"<h1>Git Diffs - Last {hours_range} Hours (Branch: {branch_name})</h1>"
+
+    html_output += f"<h1>Git Diffs - Last 1 Hour (Branch: {branch_name})</h1>"
     html_output += "<table>"
-    html_output += "<thead><tr><th>Modified File</th><th>Before</th><th>After</th><th>Responsible Person</th></tr></thead>"
+    html_output += "<thead><tr><th>Modified File</th><th>Before Change</th><th>After Change</th><th>Responsible Person</th></tr></thead>"
     html_output += "<tbody>"
 
-    # Processing commits and diffs
     for commit in commits:
+        # Skip initial commits that have no parent
         if not commit.parents:
-            continue  # Skip if there's no parent (e.g. initial commit)
+            continue
 
         parent = commit.parents[0]
+
+        # Get the diff of this commit compared to its parent
         diffs = parent.diff(commit, create_patch=True)
 
         for diff in diffs:
-            # Only process files starting with "formatted-xml"
-            if diff.a_path and diff.b_path and (diff.a_path.startswith(folder_prefix) or diff.b_path.startswith(folder_prefix)):
-                old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore').splitlines()
-                new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore').splitlines()
+            # Only include files that were added, deleted, or modified (with non-empty blobs)
+            if diff.a_path and diff.b_path and diff.a_blob and diff.b_blob:
+                # Filter files based on the 'paths_to_include' list and exclude from 'exclude_paths'
+                if any(diff.a_path.startswith(p) for p in exclude_paths) or any(diff.b_path.startswith(p) for p in exclude_paths):
+                    # Skip files that match the exclude list
+                    continue
 
-                # Generate the HTML rows for this file's diff
-                row_html = generate_diff_table_rows(old_content, new_content, diff.a_path, people)
-                html_output += "".join(row_html)
+                if not any(diff.a_path.startswith(p) for p in paths_to_include) \
+                   and not any(diff.b_path.startswith(p) for p in paths_to_include):
+                    # Skip files not in the specified include paths
+                    continue
 
-    html_output += "</tbody></table>"
-    html_output += "</body></html>"
+                old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore')
+                new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore')
 
-    # Write the final HTML report to a file
-    output_file = "diff_report.html"
+                file_path = diff.a_path
+
+                html_output += generate_html_diff(file_path, old_content, new_content, people)
+
+    html_output += "</tbody></table></body></html>"
+
+    output_file = "recent_git_diffs_with_dropdowns.html"
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_output)
 
-    print(f"Diff report has been generated: '{output_file}'")
+    print(f"Generated change report written to: '{output_file}'")
 
 if __name__ == "__main__":
     main()
+
