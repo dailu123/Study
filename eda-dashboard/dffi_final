@@ -1,7 +1,7 @@
 import os
 from git import Repo
 from datetime import datetime, timedelta
-from difflib import unified_diff, SequenceMatcher
+from difflib import unified_diff
 
 def get_repo(repo_path="."):
     """
@@ -15,7 +15,7 @@ def get_repo(repo_path="."):
         raise Exception(f"The repository at '{repo_path}' is bare. Please provide a working directory.")
     return repo
 
-def get_commits_in_time_range(repo, branch="master", hours=1):
+def get_commits_in_time_range(repo, branch="master", hours=10):
     """
     Get commits in the given branch within the last 'hours' range.
     """
@@ -29,140 +29,94 @@ def get_commits_in_time_range(repo, branch="master", hours=1):
             break
     return commits
 
-def highlight_substring_diff(old_line, new_line):
+def highlight_diff(old_line, new_line):
     """
     Highlight only the changed substring between old_line and new_line.
-    Return (old_line_html, new_line_html) with inline <span> tags for replaced parts.
+    Returns highlighted old and new lines.
     """
-    matcher = SequenceMatcher(None, old_line, new_line)
-    old_line_html_parts = []
-    new_line_html_parts = []
+    if old_line == new_line:
+        return old_line, new_line
 
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        old_segment = old_line[i1:i2]
-        new_segment = new_line[j1:j2]
+    # Perform word-level or substring-level diff to highlight changes
+    highlighted_old, highlighted_new = "", ""
+    i = 0
+    while i < len(old_line) and i < len(new_line):
+        if old_line[i] != new_line[i]:
+            # Highlight differing sections
+            highlighted_old += f"<span style='background-color: #ffc7ce;'>{old_line[i]}</span>"
+            highlighted_new += f"<span style='background-color: #c6efce;'>{new_line[i]}</span>"
+        else:
+            highlighted_old += old_line[i]
+            highlighted_new += new_line[i]
+        i += 1
 
-        if tag == 'equal':
-            old_line_html_parts.append(old_segment)
-            new_line_html_parts.append(new_segment)
-        elif tag == 'replace':
-            old_line_html_parts.append(f"<span style='background-color: #ffc7ce;'>{old_segment}</span>")
-            new_line_html_parts.append(f"<span style='background-color: #c6efce;'>{new_segment}</span>")
-        elif tag == 'delete':
-            old_line_html_parts.append(f"<span style='background-color: #ffc7ce;'>{old_segment}</span>")
-        elif tag == 'insert':
-            new_line_html_parts.append(f"<span style='background-color: #c6efce;'>{new_segment}</span>")
+    # Handle remaining characters
+    while i < len(old_line):
+        highlighted_old += f"<span style='background-color: #ffc7ce;'>{old_line[i]}</span>"
+        i += 1
+    while i < len(new_line):
+        highlighted_new += f"<span style='background-color: #c6efce;'>{new_line[i]}</span>"
+        i += 1
 
-    return "".join(old_line_html_parts), "".join(new_line_html_parts)
+    return highlighted_old, highlighted_new
 
-def parse_diff_with_context_2(old_lines, new_lines):
+def generate_diff_table_rows(old_lines, new_lines, file_path, people):
     """
-    Use unified_diff to generate a diff with 2 lines of context.
-    Return two lists: display_old_list, display_new_list.
-    - display_old_list: lines (strings) as we want to show for "Before"
-    - display_new_list: lines (strings) as we want to show for "After"
-    
-    We'll attempt single-line substring highlight ONLY when we detect
-    one '-' line followed immediately by one '+' line (i.e. a single-line replacement).
-    Otherwise, we highlight entire lines as inserted or deleted.
+    Generate the HTML table row with before/after diff for a file.
+    Each file's change is represented in one row with context and changes highlighted.
     """
-    diff_lines = list(unified_diff(
+    # Generate the unified diff with 2 lines of context
+    diff = list(unified_diff(
         old_lines, new_lines,
-        fromfile="OLD", tofile="NEW",
-        n=2,  # 2 lines of context
-        lineterm=''
+        fromfile="OLD", tofile="NEW", 
+        lineterm='',
+        n=2  # Include 2 lines of context
     ))
 
-    display_old_list = []
-    display_new_list = []
+    # Prepare the lines for before (old) and after (new)
+    before_diff = []
+    after_diff = []
 
-    i = 0
-    while i < len(diff_lines):
-        line = diff_lines[i]
-        # Skip metadata lines like --- +++ @@
-        if line.startswith("---") or line.startswith("+++") or line.startswith("@@"):
-            i += 1
-            continue
+    for line in diff:
+        if line.startswith(' '):  # Context (unchanged)
+            before_diff.append(line[2:])  # Remove leading space
+            after_diff.append(line[2:])   # Remove leading space
+        elif line.startswith('-'):  # Removed (from old)
+            before_diff.append(f"<span style='background-color: #ffc7ce;'>{line[2:]}</span>")
+            after_diff.append("")  # Empty for after
+        elif line.startswith('+'):  # Added (new)
+            before_diff.append("")  # Empty for before
+            after_diff.append(f"<span style='background-color: #c6efce;'>{line[2:]}</span>")
 
-        if line.startswith(" "):
-            # Context line; add to both sides unchanged
-            text = line[1:]  # remove leading space
-            display_old_list.append(text)
-            display_new_list.append(text)
-            i += 1
+    # Join them as a single string
+    before_combined = " / ".join(before_diff)
+    after_combined = " / ".join(after_diff)
 
-        elif line.startswith("-"):
-            # Potential replaced line if the next line is '+'
-            old_text = line[1:]  # remove '-'
-            if i + 1 < len(diff_lines) and diff_lines[i+1].startswith("+"):
-                # We have a pair of replaced lines
-                new_text = diff_lines[i+1][1:]  # remove '+'
-                # Do substring highlight
-                old_hl, new_hl = highlight_substring_diff(old_text, new_text)
-                display_old_list.append(old_hl)
-                display_new_list.append(new_hl)
-                i += 2  # skip the next '+'
-            else:
-                # This is a pure deletion
-                # highlight the entire old_text as deleted
-                old_hl = f"<span style='background-color: #ffc7ce;'>{old_text}</span>"
-                display_old_list.append(old_hl)
-                # new side gets no line for this
-                i += 1
-
-        elif line.startswith("+"):
-            # If we get here, it means there's no preceding '-' for pairing
-            # This is a pure insertion
-            new_text = line[1:]
-            new_hl = f"<span style='background-color: #c6efce;'>{new_text}</span>"
-            display_new_list.append(new_hl)
-            # old side gets no line for this
-            i += 1
-        else:
-            # unexpected line, just skip
-            i += 1
-
-    return display_old_list, display_new_list
-
-def generate_single_row_with_context(file_path, old_lines, new_lines, people):
-    """
-    Generate a single <tr> for the entire file, with 2 lines context around changes.
-    The 'Before' cell will contain all lines (context + changed) from old content,
-    the 'After' cell will contain the corresponding lines from new content.
-    
-    We'll separate lines by " / " in order to put them on a single line.
-    """
-    # 1) Parse diffs with context=2
-    display_old_list, display_new_list = parse_diff_with_context_2(old_lines, new_lines)
-
-    # 2) Join them into single lines
-    old_combined = " / ".join(display_old_list)
-    new_combined = " / ".join(display_new_list)
-
-    # 3) Prepare the dropdown
+    # Generate responsible person dropdown
     dropdown_html = "<select>"
     for p in people:
         dropdown_html += f"<option value='{p}'>{p}</option>"
     dropdown_html += "</select>"
 
-    # 4) Return one row with <pre> tag to preserve formatting
+    # Return the final HTML row
     row_html = (
         f"<tr>"
         f"<td>{file_path}</td>"
-        f"<td style='white-space: pre-wrap;'><pre>{old_combined}</pre></td>"
-        f"<td style='white-space: pre-wrap;'><pre>{new_combined}</pre></td>"
+        f"<td style='white-space: pre-wrap;'><pre>{before_combined}</pre></td>"
+        f"<td style='white-space: pre-wrap;'><pre>{after_combined}</pre></td>"
         f"<td>{dropdown_html}</td>"
         f"</tr>"
     )
     return row_html
 
 def main():
-    # Hardcode these as requested
+    # Hardcoded configurations
     repo_path = r"C:\work\github_repo\smarteda-terminal"
     branch_name = "feature/autosync-jdk17"
-    hours_range = 6  # Recently 6 hours
-    folder_prefix = "formatted-xml"  # We only show files whose path starts with "formatted-xml"
+    hours_range = 10  # Recently 10 hours
+    folder_prefix = "formatted-xml"  # Only files starting with "formatted-xml"
 
+    # Initialize repo and get recent commits
     repo = get_repo(repo_path)
     commits = get_commits_in_time_range(repo, branch=branch_name, hours=hours_range)
     print(f"Found {len(commits)} commits in the last {hours_range} hour(s) on branch '{branch_name}'.")
@@ -170,7 +124,7 @@ def main():
     # Pre-defined list of responsible persons
     people = ["Alice", "Bob", "Charlie", "David"]
 
-    # Basic HTML page structure (similar to the first version's style)
+    # Basic HTML page structure
     html_output = """
 <html>
 <head>
@@ -206,7 +160,7 @@ def main():
     html_output += "<thead><tr><th>Modified File</th><th>Before</th><th>After</th><th>Responsible Person</th></tr></thead>"
     html_output += "<tbody>"
 
-    # We'll store one row per file in each commit
+    # Processing commits and diffs
     for commit in commits:
         if not commit.parents:
             continue  # Skip if there's no parent (e.g. initial commit)
@@ -215,26 +169,19 @@ def main():
         diffs = parent.diff(commit, create_patch=True)
 
         for diff in diffs:
-            # We only care about textual modifications where we can read a_blob/b_blob
-            if diff.a_path and diff.b_path and diff.a_blob and diff.b_blob:
-                # folder filter: path must start with "formatted-xml"
-                # Check both old path and new path (in case rename etc.)
-                if not (diff.a_path.startswith(folder_prefix) or diff.b_path.startswith(folder_prefix)):
-                    continue
-
+            # Only process files starting with "formatted-xml"
+            if diff.a_path and diff.b_path and (diff.a_path.startswith(folder_prefix) or diff.b_path.startswith(folder_prefix)):
                 old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore').splitlines()
                 new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore').splitlines()
 
-                # Decide how to label the file
-                file_label = diff.b_path  # or diff.a_path, whichever you prefer
-
-                # Generate a single row for this file (with 2-line context around changes)
-                row_html = generate_single_row_with_context(file_label, old_content, new_content, people)
+                # Generate the HTML row for this file's diff
+                row_html = generate_diff_table_rows(old_content, new_content, diff.a_path, people)
                 html_output += row_html
 
     html_output += "</tbody></table>"
     html_output += "</body></html>"
 
+    # Write the final HTML report to a file
     output_file = "diff_report.html"
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_output)
