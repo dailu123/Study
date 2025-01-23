@@ -1,0 +1,267 @@
+import os
+from git import Repo
+from datetime import datetime, timedelta
+from difflib import unified_diff, SequenceMatcher
+
+def get_repo(repo_path="."):
+    """
+    Return a Repo object for the given path.
+    Raise an exception if the path is not a valid Git repository.
+    """
+    if not os.path.exists(repo_path):
+        raise FileNotFoundError(f"Path does not exist: {repo_path}")
+    repo = Repo(repo_path)
+    if repo.bare:
+        raise Exception(f"The repository at '{repo_path}' is bare. Please provide a working directory.")
+    return repo
+
+def get_commits_in_time_range(repo, branch="master", hours=10):
+    """
+    Get commits in the given branch within the last 'hours' range.
+    """
+    time_limit = datetime.now() - timedelta(hours=hours)
+    commits = []
+    for commit in repo.iter_commits(branch):
+        commit_time = datetime.fromtimestamp(commit.committed_date)
+        if commit_time >= time_limit:
+            commits.append(commit)
+        else:
+            break
+    return commits
+
+def starts_with_any(path, prefix_list):
+    """
+    Return True if 'path' starts with any prefix in 'prefix_list'.
+    """
+    return any(path.startswith(p) for p in prefix_list)
+
+def highlight_substring_diff(old_line, new_line):
+    """
+    Highlight only the changed substring between old_line and new_line.
+    Return (old_line_html, new_line_html) with inline <span> tags.
+    If old_line == new_line, return them as-is (no highlight needed).
+    """
+    if old_line == new_line:
+        return old_line, new_line
+
+    matcher = SequenceMatcher(None, old_line, new_line)
+    old_line_html_parts = []
+    new_line_html_parts = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        old_segment = old_line[i1:i2]
+        new_segment = new_line[j1:j2]
+
+        if tag == 'equal':
+            old_line_html_parts.append(old_segment)
+            new_line_html_parts.append(new_segment)
+        elif tag == 'replace':
+            old_line_html_parts.append(f"<span style='background-color: #ffc7ce;'>{old_segment}</span>")
+            new_line_html_parts.append(f"<span style='background-color: #c6efce;'>{new_segment}</span>")
+        elif tag == 'delete':
+            old_line_html_parts.append(f"<span style='background-color: #ffc7ce;'>{old_segment}</span>")
+        elif tag == 'insert':
+            new_line_html_parts.append(f"<span style='background-color: #c6efce;'>{new_segment}</span>")
+
+    return "".join(old_line_html_parts), "".join(new_line_html_parts)
+
+def generate_file_diff_rows(file_path, old_lines, new_lines, people):
+    """
+    Generate multiple <tr> rows for a single file, showing 1 line of context and changes.
+    - The first row includes: [Modified File] | [Responsible Person] | [Before] | [After]
+      with 'rowspan' for the first two columns so that for all changed lines in this file,
+      the filename and dropdown appear only once.
+    - Subsequent rows only fill 'Before' and 'After' cells.
+    """
+
+    # Use unified_diff with n=1 for 1 line of context
+    diff_lines = list(unified_diff(
+        old_lines,
+        new_lines,
+        fromfile="OLD",
+        tofile="NEW",
+        lineterm='',
+        n=1  # only 1 line of context
+    ))
+
+    # We'll parse diff_lines, building up pairs of (before_line, after_line).
+    before_list = []
+    after_list = []
+
+    for line in diff_lines:
+        # Skip metadata lines (---, +++, @@)
+        if line.startswith("---") or line.startswith("+++") or line.startswith("@@"):
+            continue
+
+        if line.startswith(" "):
+            # context line
+            context_text = line[1:]  # remove leading space
+            before_list.append(context_text)
+            after_list.append(context_text)
+        elif line.startswith("-"):
+            # removed line from old
+            removed_text = line[1:]
+            before_list.append(removed_text)
+            after_list.append("")
+        elif line.startswith("+"):
+            # added line in new
+            added_text = line[1:]
+            before_list.append("")
+            after_list.append(added_text)
+
+    rows = []
+
+    # Prepare the dropdown (responsible person) once for the entire file
+    dropdown_html = "<select>"
+    for p in people:
+        dropdown_html += f"<option value='{p}'>{p}</option>"
+    dropdown_html += "</select>"
+
+    total_lines = len(before_list)
+    if total_lines == 0:
+        # Means there's no difference for this file (maybe?), skip returning anything
+        return []
+
+    for i, (b_line, a_line) in enumerate(zip(before_list, after_list)):
+        # Substring diff highlight
+        if b_line.strip() or a_line.strip():
+            b_hl, a_hl = highlight_substring_diff(b_line, a_line)
+        else:
+            # If both are empty, no diff to highlight
+            b_hl, a_hl = b_line, a_line
+
+        if i == 0:
+            # First row includes file_path & responsible person with rowspan
+            row = (
+                f"<tr>"
+                f"<td class='file-col' rowspan='{total_lines}'>{file_path}</td>"
+                f"<td class='file-col' rowspan='{total_lines}'>{dropdown_html}</td>"
+                f"<td style='white-space: pre;'><pre>{b_hl}</pre></td>"
+                f"<td style='white-space: pre;'><pre>{a_hl}</pre></td>"
+                f"</tr>"
+            )
+        else:
+            # subsequent rows: only "Before" and "After" columns
+            row = (
+                f"<tr>"
+                f"<td style='white-space: pre;'><pre>{b_hl}</pre></td>"
+                f"<td style='white-space: pre;'><pre>{a_hl}</pre></td>"
+                f"</tr>"
+            )
+        rows.append(row)
+
+    return rows
+
+def main():
+    # Hardcoded configurations
+    repo_path = r"C:\work\github_repo\smarteda-terminal"
+    branch_name = "feature/autosync-jdk17"
+    hours_range = 10  # show commits in the last 10 hours
+
+    # Files/folders that we ALLOW if path.startswith(...) one of these
+    allow_prefixes = ["formatted-xml", "src/someFolder", "config/"]  # Example
+    # Files/folders that we EXCLUDE if path.startswith(...) one of these
+    exclude_prefixes = ["formatted-xml/excluded", "src/someFolder/unwantedFile"]
+
+    # Initialize repo and get recent commits
+    repo = get_repo(repo_path)
+    commits = get_commits_in_time_range(repo, branch=branch_name, hours=hours_range)
+    print(f"Found {len(commits)} commits in the last {hours_range} hour(s) on branch '{branch_name}'.")
+
+    # Responsible persons
+    people = ["Alice", "Bob", "Charlie", "David"]
+
+    # Basic HTML structure
+    html_output = """
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+    }
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 30px;
+    }
+    th, td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        text-align: left;
+        vertical-align: top;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    h1 {
+        margin-bottom: 10px;
+    }
+    /* Force the first columns to be only 100px wide, wrapping text if needed */
+    th.file-col, td.file-col {
+        width: 100px;
+        max-width: 100px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;  /* allow wraps inside */
+    }
+    pre {
+        margin: 0;
+    }
+</style>
+</head>
+<body>
+"""
+    html_output += f"<h1>Git Diffs - Last {hours_range} Hours (Branch: {branch_name})</h1>"
+    html_output += "<table>"
+    html_output += ("<thead>"
+                    "<tr>"
+                    "<th class='file-col'>Modified File</th>"
+                    "<th class='file-col'>Responsible Person</th>"
+                    "<th>Before</th>"
+                    "<th>After</th>"
+                    "</tr></thead>")
+    html_output += "<tbody>"
+
+    for commit in commits:
+        if not commit.parents:
+            continue  # no parent means initial commit, skip
+
+        parent = commit.parents[0]
+        diffs = parent.diff(commit, create_patch=True)
+
+        for diff in diffs:
+            # We only proceed if a_path/b_path are not None
+            if diff.a_path and diff.b_path and diff.a_blob and diff.b_blob:
+                # 1) Check ALLOW condition: if neither old nor new path starts with any allowed prefix -> skip
+                allowed = starts_with_any(diff.a_path, allow_prefixes) or starts_with_any(diff.b_path, allow_prefixes)
+                if not allowed:
+                    continue
+
+                # 2) Check EXCLUDE condition: if old/new path starts with any exclude prefix -> skip
+                excluded = starts_with_any(diff.a_path, exclude_prefixes) or starts_with_any(diff.b_path, exclude_prefixes)
+                if excluded:
+                    continue
+
+                # Now we know it's allowed & not excluded
+                old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore').splitlines()
+                new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore').splitlines()
+
+                # We'll use diff.b_path as the file label (or diff.a_path, your choice)
+                file_label = diff.b_path
+
+                rows_for_file = generate_file_diff_rows(file_label, old_content, new_content, people)
+                html_output += "".join(rows_for_file)
+
+    html_output += "</tbody></table>"
+    html_output += "</body></html>"
+
+    output_file = "diff_report.html"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html_output)
+
+    print(f"Diff report has been generated: '{output_file}'")
+
+if __name__ == "__main__":
+    main()
