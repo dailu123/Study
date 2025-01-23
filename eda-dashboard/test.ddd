@@ -1,3 +1,108 @@
+def highlight_substring_diff(old_line, new_line):
+    """
+    Highlight only the changed substring between old_line and new_line.
+    Return (old_line_html, new_line_html) with inline <span> tags.
+    If old_line == new_line, return them as-is (no highlight needed).
+    """
+    if old_line == new_line:
+        return old_line, new_line
+
+    matcher = SequenceMatcher(None, old_line, new_line)
+    old_line_html_parts = []
+    new_line_html_parts = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        old_segment = old_line[i1:i2]
+        new_segment = new_line[j1:j2]
+
+        if tag == 'equal':
+            old_line_html_parts.append(old_segment)
+            new_line_html_parts.append(new_segment)
+        elif tag == 'replace':
+            old_line_html_parts.append(f"<span style='background-color: #ffc7ce;'>{old_segment}</span>")
+            new_line_html_parts.append(f"<span style='background-color: #c6efce;'>{new_segment}</span>")
+        elif tag == 'delete':
+            old_line_html_parts.append(f"<span style='background-color: #ffc7ce;'>{old_segment}</span>")
+        elif tag == 'insert':
+            new_line_html_parts.append(f"<span style='background-color: #c6efce;'>{new_segment}</span>")
+
+    return "".join(old_line_html_parts), "".join(new_line_html_parts)
+
+def generate_file_diff_rows(file_path, old_lines, new_lines, people):
+    """
+    Generate multiple <tr> rows for a single file, showing 1 line of context and changes.
+    """
+    diff_lines = list(unified_diff(
+        old_lines,
+        new_lines,
+        fromfile="OLD",
+        tofile="NEW",
+        lineterm='',
+        n=1  # only 1 line of context
+    ))
+
+    before_list = []
+    after_list = []
+
+    for line in diff_lines:
+        if line.startswith("---") or line.startswith("+++") or line.startswith("@@"):
+            continue
+
+        if line.startswith(" "):
+            # context line
+            context_text = line[1:]  # remove leading space
+            before_list.append(context_text)
+            after_list.append(context_text)
+        elif line.startswith("-"):
+            # removed line from old
+            removed_text = line[1:]
+            before_list.append(removed_text)
+            after_list.append("")
+        elif line.startswith("+"):
+            # added line in new
+            added_text = line[1:]
+            before_list.append("")
+            after_list.append(added_text)
+
+    rows = []
+
+    dropdown_html = "<select>"
+    for p in people:
+        dropdown_html += f"<option value='{p}'>{p}</option>"
+    dropdown_html += "</select>"
+
+    total_lines = len(before_list)
+    if total_lines == 0:
+        return []
+
+    for i, (b_line, a_line) in enumerate(zip(before_list, after_list)):
+        if b_line.strip() or a_line.strip():
+            b_hl, a_hl = highlight_substring_diff(b_line, a_line)
+        else:
+            b_hl, a_hl = b_line, a_line
+
+        if i == 0:
+            row = (
+                f"<tr>"
+                f"<td class='file-col' rowspan='{total_lines}'>{file_path}</td>"
+                f"<td class='file-col' rowspan='{total_lines}'>{dropdown_html}</td>"
+                f"<td style='white-space: pre;'><pre>{b_hl}</pre></td>"
+                f"<td style='white-space: pre;'><pre>{a_hl}</pre></td>"
+                f"</tr>"
+            )
+        else:
+            row = (
+                f"<tr>"
+                f"<td style='white-space: pre;'><pre>{b_hl}</pre></td>"
+                f"<td style='white-space: pre;'><pre>{a_hl}</pre></td>"
+                f"</tr>"
+            )
+        rows.append(row)
+
+    return rows
+
+
+
 import os
 from git import Repo
 from datetime import datetime, timedelta
