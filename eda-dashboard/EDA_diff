@@ -5,6 +5,252 @@ from difflib import unified_diff
 
 def get_repo(repo_path="."):
     """
+    初始化并返回给定路径下的 Repo 对象。
+    """
+    if not os.path.exists(repo_path):
+        raise FileNotFoundError(f"路径不存在: {repo_path}")
+    repo = Repo(repo_path)
+    if repo.bare:
+        raise Exception(f"仓库 '{repo_path}' 是一个裸仓库，请提供工作区路径。")
+    return repo
+
+def get_commits_in_time_range(repo, branch="master", hours=1):
+    """
+    获取指定 branch 在最近 hours 小时内的提交记录。
+    """
+    time_limit = datetime.now() - timedelta(hours=hours)
+    commits = []
+    for commit in repo.iter_commits(branch):
+        commit_time = datetime.fromtimestamp(commit.committed_date)
+        if commit_time >= time_limit:
+            commits.append(commit)
+        else:
+            # 因为提交是按时间逆序迭代，如果当前提交时间已早于 time_limit，
+            # 后面的提交时间也会更早，可以直接跳出循环。
+            break
+    return commits
+
+def generate_html_diff(file_path, old_content, new_content, people):
+    """
+    基于给定的旧内容和新内容，生成带高亮的 HTML diff 表格行。
+    每个文件返回对应的一组 <tr> 行，并且在第一行的第一列显示文件名，其余行留空。
+    最后一列是负责人的下拉选择框。
+    """
+    diff_lines = list(unified_diff(
+        old_content.splitlines(),
+        new_content.splitlines(),
+        lineterm='',
+        fromfile="Before",
+        tofile="After",
+    ))
+
+    # 如果 diff_lines 为空，说明没有实际变更
+    if not diff_lines:
+        return ""
+
+    rows = []
+    first_diff_line = True
+
+    for line in diff_lines:
+        # 跳过 diff 的元信息行（例如 --- +++ @@）
+        if line.startswith('---') or line.startswith('+++') or line.startswith('@@'):
+            continue
+
+        # 生成“责任人”下拉框的 HTML
+        dropdown_html = "<select>"
+        for person in people:
+            dropdown_html += f"<option value='{person}'>{person}</option>"
+        dropdown_html += "</select>"
+
+        # 为了防止 HTML 被破坏，转义特殊字符
+        safe_line_content = (line[1:].replace('<', '&lt;')
+                                     .replace('>', '&gt;'))
+
+        # 分别处理删除(-)、新增(+) 和上下文(空格或其它)
+        if line.startswith('-'):  # 旧文件中被删除的行
+            if first_diff_line:
+                row = (
+                    f"<tr>"
+                    f"<td rowspan='1'>{file_path}</td>"
+                    f"<td style='background-color: #ffc7ce;'>{safe_line_content}</td>"
+                    f"<td></td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+                first_diff_line = False
+            else:
+                row = (
+                    f"<tr>"
+                    f"<td style='background-color: #ffc7ce;'>{safe_line_content}</td>"
+                    f"<td></td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+            rows.append(row)
+
+        elif line.startswith('+'):  # 新文件中新增的行
+            if first_diff_line:
+                row = (
+                    f"<tr>"
+                    f"<td rowspan='1'>{file_path}</td>"
+                    f"<td></td>"
+                    f"<td style='background-color: #c6efce;'>{safe_line_content}</td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+                first_diff_line = False
+            else:
+                row = (
+                    f"<tr>"
+                    f"<td></td>"
+                    f"<td style='background-color: #c6efce;'>{safe_line_content}</td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+            rows.append(row)
+
+        else:
+            # 一般是空格开头的上下文行，也可能是完全空行
+            # 如果行以空格开头，去掉第一个字符（diff 默认会在上下文行前面加空格）
+            safe_line_content = line.lstrip(' ')
+            safe_line_content = safe_line_content.replace('<', '&lt;').replace('>', '&gt;')
+            if first_diff_line:
+                row = (
+                    f"<tr>"
+                    f"<td rowspan='1'>{file_path}</td>"
+                    f"<td colspan='2'>{safe_line_content}</td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+                first_diff_line = False
+            else:
+                row = (
+                    f"<tr>"
+                    f"<td colspan='2'>{safe_line_content}</td>"
+                    f"<td>{dropdown_html}</td>"
+                    f"</tr>"
+                )
+            rows.append(row)
+
+    # 实现对第一列（文件名）的 rowspan，使文件名只在第一行显示
+    if rows:
+        total_rows = len(rows)
+        # 调整第一行的 rowspan
+        first_row = rows[0]
+        if "rowspan='1'" in first_row:
+            first_row = first_row.replace("rowspan='1'", f"rowspan='{total_rows}'")
+        if "rowspan=\"1\"" in first_row:
+            first_row = first_row.replace('rowspan="1"', f'rowspan="{total_rows}"')
+        rows[0] = first_row
+
+        # 后续行去掉重复的 <td rowspan='1'>{file_path}</td>，如果有的话
+        for i in range(1, total_rows):
+            rows[i] = rows[i].replace(f"<tr><td rowspan='1'>{file_path}</td>", "<tr>")
+            rows[i] = rows[i].replace(f"<tr><td rowspan=\"1\">{file_path}</td>", "<tr>")
+
+    return "\n".join(rows)
+
+def main():
+    repo_path = "."
+    repo = get_repo(repo_path)
+
+    # 仅示例，可根据需求改为其它分支名
+    branch_name = "master"
+    # 获取最近 1 小时内的提交
+    commits = get_commits_in_time_range(repo, branch=branch_name, hours=1)
+    print(f"在分支 '{branch_name}' 最近 1 小时内找到 {len(commits)} 条提交。")
+
+    # 预定义责任人下拉框列表
+    people = ["Alice", "Bob", "Charlie", "David"]
+    
+    # 只关注的文件或文件夹（示例：只看 src/ 目录、docs/ 目录及 README.md 的变化）
+    paths_to_include = ["src/", "docs/", "README.md"]
+
+    # 创建 HTML 页面基本框架
+    html_output = """
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { margin-bottom: 10px; }
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 30px;
+    }
+    th, td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        vertical-align: top;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    /* 下面可以根据喜好进一步美化，比如让删除/新增的行背景颜色更柔和 */
+</style>
+</head>
+<body>
+"""
+
+    html_output += f"<h1>Git Diffs - 最近 1 小时 (分支: {branch_name})</h1>"
+    html_output += "<table>"
+    html_output += "<thead><tr><th>修改文件</th><th>变更前</th><th>变更后</th><th>责任人</th></tr></thead>"
+    html_output += "<tbody>"
+
+    for commit in commits:
+        # 跳过没有父提交的场景（例如初始提交）
+        if not commit.parents:
+            continue
+
+        parent = commit.parents[0]
+
+        # 获取该 commit 相对于其父提交的 diff
+        diffs = parent.diff(commit, create_patch=True)
+
+        for diff in diffs:
+            # 如果 diff 对象表示文件的新增/删除/修改，需要确保 a_blob/b_blob 不为空
+            # 一般只有被修改的文件才能读取到前后内容
+            if diff.a_path and diff.b_path and diff.a_blob and diff.b_blob:
+                # 如果你只想看某些文件或文件夹，可做如下过滤
+                # 只要旧路径或者新路径满足在 `paths_to_include` 之列，就展示
+                if not any(diff.a_path.startswith(p) for p in paths_to_include) \
+                   and not any(diff.b_path.startswith(p) for p in paths_to_include):
+                    # 如果都不符合，就跳过
+                    continue
+
+                old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore')
+                new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore')
+
+                # 这里的 file_path 可以选择显示 diff.a_path 还是 diff.b_path
+                # 如果文件改名，也可以加逻辑拼接一下
+                file_path = diff.a_path
+
+                html_output += generate_html_diff(file_path, old_content, new_content, people)
+
+    html_output += "</tbody></table></body></html>"
+
+    output_file = "recent_git_diffs_with_dropdowns.html"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html_output)
+
+    print(f"生成的变更报告已写入: '{output_file}'")
+
+if __name__ == "__main__":
+    main()
+
+
+
+-----------
+
+
+import os
+from git import Repo
+from datetime import datetime, timedelta
+from difflib import unified_diff
+
+def get_repo(repo_path="."):
+    """
     Initialize and return a Repo object for the given path.
     If no path is provided, defaults to the current directory.
     """
