@@ -1,0 +1,104 @@
+import os
+from git import Repo
+from datetime import datetime, timedelta
+from difflib import unified_diff
+
+def get_repo(repo_path="."):
+    """
+    Initialize and return a Repo object for the given path.
+    If no path is provided, defaults to the current directory.
+    """
+    if not os.path.exists(repo_path):
+        raise FileNotFoundError(f"Path does not exist: {repo_path}")
+    repo = Repo(repo_path)
+    if repo.bare:
+        raise Exception(f"Repository at '{repo_path}' is bare. Please provide a working directory.")
+    return repo
+
+def get_commits_in_time_range(repo, branch="master", hours=1):
+    """
+    Return commits from the given branch within the last 'hours'.
+    """
+    time_limit = datetime.now() - timedelta(hours=hours)
+    commits = []
+    for commit in repo.iter_commits(branch):
+        commit_time = datetime.fromtimestamp(commit.committed_date)
+        if commit_time >= time_limit:
+            commits.append(commit)
+        else:
+            break
+    return commits
+
+def generate_html_diff(file_path, old_content, new_content, people):
+    """
+    Generate an HTML table showing diffs of old and new content grouped by file.
+    Includes an additional dropdown column for "Responsible Person".
+    """
+    diff = unified_diff(
+        old_content.splitlines(),
+        new_content.splitlines(),
+        lineterm='',
+        fromfile="Before",
+        tofile="After",
+    )
+
+    html = f"<tr><td rowspan='100%'>{file_path}</td>"
+    first_line = True
+    for line in diff:
+        dropdown = "<select>"
+        for person in people:
+            dropdown += f"<option value='{person}'>{person}</option>"
+        dropdown += "</select>"
+
+        if line.startswith(' '):
+            html += f"<td>{line[1:]}</td><td>{line[1:]}</td><td>{dropdown}</td></tr>"
+        elif line.startswith('-'):
+            html += f"<tr><td style='background-color: #ffc7ce;'>{line[1:]}</td><td></td><td>{dropdown}</td></tr>"
+        elif line.startswith('+'):
+            html += f"<tr><td></td><td style='background-color: #c6efce;'>{line[1:]}</td><td>{dropdown}</td></tr>"
+
+        if first_line:
+            first_line = False
+        else:
+            html = html.replace(f"<tr><td rowspan='100%'>{file_path}</td>", "")
+
+    return html
+
+def main():
+    repo_path = "."
+    repo = get_repo(repo_path)
+
+    branch_name = "master"
+    commits = get_commits_in_time_range(repo, branch=branch_name, hours=1)
+    print(f"Found {len(commits)} commits in the last 1 hour on branch '{branch_name}'.")
+
+    # Pre-defined list of people for dropdown
+    people = ["Alice", "Bob", "Charlie", "David"]
+
+    html_output = "<html><head><style>body { font-family: Arial, sans-serif; } table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid black; padding: 8px; text-align: left; }</style></head><body>"
+    html_output += f"<h1>Git Diffs - Last 1 Hour (Branch: {branch_name})</h1>"
+    html_output += "<table><thead><tr><th>Modified File</th><th>Before</th><th>After</th><th>Responsible Person</th></tr></thead><tbody>"
+
+    for commit in commits:
+        if not commit.parents:
+            continue
+
+        parent = commit.parents[0]
+        diffs = parent.diff(commit, create_patch=True)
+
+        for diff in diffs:
+            if diff.a_path and diff.b_path and diff.a_blob and diff.b_blob:
+                old_content = diff.a_blob.data_stream.read().decode('utf-8', errors='ignore')
+                new_content = diff.b_blob.data_stream.read().decode('utf-8', errors='ignore')
+                html_output += generate_html_diff(diff.a_path, old_content, new_content, people)
+
+    html_output += "</tbody></table></body></html>"
+
+    output_file = "recent_git_diffs_with_dropdowns.html"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html_output)
+
+    print(f"Recent diffs have been written to '{output_file}'.")
+
+if __name__ == "__main__":
+    main()
