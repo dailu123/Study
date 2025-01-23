@@ -1,0 +1,86 @@
+import requests
+import json
+
+# Confluence 配置信息
+CONFLUENCE_BASE_URL = "https://your-domain.atlassian.net/wiki/rest/api/content"  # 替换为你的 Confluence API 基础 URL
+USERNAME = "your_email@example.com"  # 替换为你的 Confluence 用户名或邮箱
+API_TOKEN = "your_api_token"  # 替换为你的 API Token
+SPACE_KEY = "YOUR_SPACE_KEY"  # 替换为你的 Confluence 空间 Key
+PAGE_TITLE = "Your Page Title"  # 替换为目标页面标题
+
+# HTML 表格内容
+html_table = """
+<table>
+    <thead>
+        <tr>
+            <th style="background-color: #f4f4f4; color: black;">Column 1</th>
+            <th style="background-color: #f4f4f4; color: black;">Column 2</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="background-color: #dff0d8; color: black;">Row 1, Col 1</td>
+            <td style="background-color: #dff0d8; color: black;">Row 1, Col 2</td>
+        </tr>
+        <tr>
+            <td style="background-color: #fcf8e3; color: black;">Row 2, Col 1</td>
+            <td style="background-color: #fcf8e3; color: black;">Row 2, Col 2</td>
+        </tr>
+    </tbody>
+</table>
+"""
+
+# 构建页面内容
+page_content = f"""
+<h1>Generated Table</h1>
+<p>Below is a dynamically generated table:</p>
+{html_table}
+"""
+
+# 构建 API 请求数据
+data = {
+    "type": "page",
+    "title": PAGE_TITLE,
+    "space": {"key": SPACE_KEY},
+    "body": {
+        "storage": {
+            "value": page_content,
+            "representation": "storage"  # 使用 "storage" 格式支持 HTML
+        }
+    }
+}
+
+# 创建或更新页面的函数
+def create_or_update_page():
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    # 检查页面是否存在
+    search_url = f"{CONFLUENCE_BASE_URL}?title={PAGE_TITLE}&spaceKey={SPACE_KEY}"
+    response = requests.get(search_url, auth=(USERNAME, API_TOKEN))
+
+    if response.status_code == 200:
+        results = response.json().get("results", [])
+        if results:
+            # 页面已存在，执行更新
+            page_id = results[0]["id"]
+            update_url = f"{CONFLUENCE_BASE_URL}/{page_id}"
+            data["version"] = {"number": results[0]["version"]["number"] + 1}
+            response = requests.put(update_url, headers=headers, auth=(USERNAME, API_TOKEN), data=json.dumps(data))
+        else:
+            # 页面不存在，创建新页面
+            response = requests.post(CONFLUENCE_BASE_URL, headers=headers, auth=(USERNAME, API_TOKEN), data=json.dumps(data))
+    else:
+        print("Failed to search for the page:", response.status_code, response.text)
+        return
+
+    # 检查请求结果
+    if response.status_code in [200, 201]:
+        print("Page created/updated successfully!")
+        print("Page URL:", response.json()["_links"]["base"] + response.json()["_links"]["webui"])
+    else:
+        print("Failed to create/update page:", response.status_code, response.text)
+
+# 调用函数
+create_or_update_page()
