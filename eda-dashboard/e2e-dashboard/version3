@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow Monitor Dashboard (Material)</title>
+  <!-- Materialize CSS & Google Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"/>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body{background:#fafafa;}
+    .kpi-card{padding:22px 12px;text-align:center;color:#fff;border-radius:8px}
+    .green-card{background:#43a047}.amber-card{background:#fb8c00}.red-card{background:#e53935}.grey-card{background:#546e7a}
+    .status-badge{border-radius:12px;padding:2px 8px;color:#fff;font-size:.8rem}
+    .status-GREEN{background:#43a047}.status-AMBER{background:#fb8c00}.status-RED{background:#e53935}
+    table.striped>tbody>tr:nth-child(odd){background:#f5f5f5}
+    @media(max-width:600px){.kpi-card h5{font-size:1.4rem}}
+  </style>
+</head>
+<body>
+<nav class="blue darken-1">
+  <div class="nav-wrapper container">
+    <span class="brand-logo">Flow Monitor</span>
+  </div>
+</nav>
+
+<div class="container" style="margin-bottom:64px">
+
+  <!-- Filter Panel -->
+  <div class="card section white z-depth-1">
+    <div class="card-content">
+      <span class="card-title"><i class="material-icons tiny">filter_list</i> Filters</span>
+      <div class="row" id="filterForm">
+        <div class="input-field col s12 m4 l3"><input id="eventIdInput" type="text"><label for="eventIdInput">Event ID</label></div>
+        <div class="input-field col s12 m4 l3"><input id="tableNameInput" type="text"><label for="tableNameInput">MCA Table Name</label></div>
+        <div class="input-field col s12 m4 l3"><input id="keyValueInput" type="text"><label for="keyValueInput">MCA Key Value</label></div>
+        <div class="input-field col s12 m4 l3"><input id="hubTableInput" type="text"><label for="hubTableInput">HUB Table Name</label></div>
+        <div class="input-field col s12 m4 l3"><input id="hubKeyInput" type="text"><label for="hubKeyInput">HUB Key Value</label></div>
+        <div class="input-field col s12 m4 l3"><input id="startTimeInput" type="datetime-local"><label class="active" for="startTimeInput">Start Time</label></div>
+        <div class="input-field col s12 m4 l3"><input id="endTimeInput" type="datetime-local"><label class="active" for="endTimeInput">End Time</label></div>
+      </div>
+      <a class="waves-effect waves-light btn blue darken-1" id="searchBtn"><i class="material-icons left">search</i>Search</a>
+      <a class="waves-effect btn-flat" id="resetBtn">Reset</a>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="row" id="kpiRow">
+    <div class="col s12 m6 l3"><div class="kpi-card green-card"><h5 id="greenCount">0</h5><span>Green ≤5m</span></div></div>
+    <div class="col s12 m6 l3"><div class="kpi-card amber-card"><h5 id="amberCount">0</h5><span>Amber 5‑15m</span></div></div>
+    <div class="col s12 m6 l3"><div class="kpi-card red-card"><h5 id="redCount">0</h5><span>Red >15m/Error</span></div></div>
+    <div class="col s12 m6 l3"><div class="kpi-card grey-card"><h5 id="avgTime">0</h5><span>Avg Proc Time (m)</span></div></div>
+  </div>
+
+  <!-- Flow view toggle -->
+  <div class="section">
+    <div class="switch"><label>External<input type="checkbox" id="internalToggle" checked><span class="lever"></span>Internal</label></div>
+  </div>
+
+  <!-- Data Table -->
+  <table class="highlight responsive-table striped" id="flowTable">
+    <thead>
+      <tr>
+        <th>Event ID</th><th>MCA Table</th><th>MCA Key</th><th>HUB Table</th><th>HUB Key</th><th>OMS Update</th><th class="internal-col">Menshen Update</th><th>Terminal Update</th><th>HUB Update</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+</div>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script>
+/************ Utility ************/
+function formatDate(d){return moment(d).format('YYYY-MM-DD-HH:mm:ss SSS');}
+function parseDate(str){return str?moment(str,'YYYY-MM-DD-HH:mm:ss SSS').toDate():null;}
+function randomChoice(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function pad(n,len=3){return ('000'+n).slice(-len);} 
+
+/************ Mock Data ************/
+const tableNames=['RB_ACCT','BS_GL_POST','TXN_HDR','RB_LOAN','RB_CUST'];
+const hubTables=['HUB_ACCT','HUB_GL_POST','HUB_TXN_HDR','HUB_LOAN','HUB_CUST'];
+let nextId=1;
+function generateMockEvent(){
+  const p=Math.random();
+  const status=p<0.55?'GREEN':p<0.8?'AMBER':'RED';
+  const totalMin=status==='GREEN'?Math.floor(Math.random()*5)+1:status==='AMBER'?Math.floor(Math.random()*10)+6:Math.floor(Math.random()*15)+16;
+  const now=new Date();
+  const oms=new Date(now.getTime()-totalMin*60000);
+  const menshen=new Date(oms.getTime()+60000);
+  const terminal=new Date(menshen.getTime()+120000);
+  const hub=new Date(oms.getTime()+totalMin*60000);
+  return {
+    EventID:`EVT${pad(nextId++,6)}${moment().format('HHmmss')}`,
+    Status:status,
+    'MCA Table Name':randomChoice(tableNames),
+    'MCA Key Value':`KEY${pad(Math.floor(Math.random()*100000),5)}`,
+    'HUB Table Name':randomChoice(hubTables),
+    'HUB Key Value':`HKEY${pad(Math.floor(Math.random()*100000),5)}`,
+    'OMS Update Time':formatDate(oms),
+    'Menshen Update':formatDate(menshen),
+    'Terminal Update':status!=='RED'||Math.random()>0.5?formatDate(terminal):null,
+    'HUB Update':status!=='RED'?formatDate(hub):null
+  };
+}
+// Initial seed (25)
+const rawData=Array.from({length:25},generateMockEvent);
+let filteredData=[...rawData];
+
+/************ KPI & Render ************/
+function computeKPIs(arr){
+  let g=0,a=0,r=0,sum=0,c=0;
+  arr.forEach(ev=>{
+    if(ev.Status==='GREEN')g++;else if(ev.Status==='AMBER')a++;else r++;
+    const s=parseDate(ev['OMS Update Time']);
+    const e=parseDate(ev['HUB Update'])||parseDate(ev['Terminal Update'])||parseDate(ev['Menshen Update']);
+    if(s&&e){sum+=(e-s)/60000;c++;}
+  });
+  return {green:g,amber:a,red:r,avg:c?(sum/c).toFixed(2):0};
+}
+function renderKPIs(){const k=computeKPIs(filteredData);['green','amber','red'].forEach(col=>document.getElementById(col+'Count').textContent=k[col]);document.getElementById('avgTime').textContent=k.avg;}
+function renderTable(){
+  const tbody=document.querySelector('#flowTable tbody');
+  tbody.innerHTML='';
+  const internal=document.getElementById('internalToggle').checked;
+  document.querySelectorAll('.internal-col').forEach(el=>el.style.display=internal?'':'none');
+  filteredData.forEach(ev=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${ev.EventID}</td><td>${ev['MCA Table Name']}</td><td>${ev['MCA Key Value']}</td><td>${ev['HUB Table Name']}</td><td>${ev['HUB Key Value']}</td><td>${ev['OMS Update Time']||''}</td>${internal?`<td>${ev['Menshen Update']||''}</td>`:''}<td>${ev['Terminal Update']||''}</td><td>${ev['HUB Update']||''}</td><td><span class='status-badge status-${ev.Status}'>${ev.Status}</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function render(){renderKPIs();renderTable();}
+
+/************ Filtering ************/
+function applyFilters(){
+  const q=(id)=>document.getElementById(id).value.trim().toLowerCase();
+  const eid=q('eventIdInput'),mca=q('tableNameInput'),mkey=q('keyValueInput'),hubt=q('hubTableInput'),hubk=q('hubKeyInput');
+  const st=document.getElementById('startTimeInput').value,et=document.getElementById('endTimeInput').value;
+  filteredData=rawData.filter(ev=>{
+    if(eid&& !ev.EventID.toLowerCase().includes(eid))return false;
+    if(mca&& !(ev['MCA Table Name']||'').toLowerCase().includes(mca))return false;
+    if(mkey&& !(ev['MCA Key Value']||'').toLowerCase().includes(mkey))return false;
+    if(hubt&& !(ev['HUB Table Name']||'').toLowerCase().includes(hubt))return false;
+    if(hubk&& !(ev['HUB Key Value']||'').toLowerCase().includes(hubk))return false;
+    const oms=parseDate(ev['OMS Update Time']);
+    if(st&&(!oms||oms<new Date(st)))return false;
+    if(et&&(!oms||oms>new Date(et)))return false;
+    return true;
+  });
+  render();
+}
+function resetFilters(){document.querySelectorAll('#filterForm input').forEach(inp=>inp.value='');M.updateTextFields();filteredData=[...rawData];render();}
+
+/************ Init + Events ************/
+document.addEventListener('DOMContentLoaded',()=>{
+  render();
+  document.getElementById('searchBtn').addEventListener('click',applyFilters);
+  document.getElementById('resetBtn').addEventListener('click',resetFilters);
+  document.getElementById('internalToggle').addEventListener('change',render);
+});
+
+/************ Dynamic append every 10s ************/
+setInterval(()=>{
+  rawData.push(generateMockEvent());
+  applyFilters(); // re‑apply current filters
+},10000);
+</script>
+</body>
+</html>
