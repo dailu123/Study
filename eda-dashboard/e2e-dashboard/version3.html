@@ -1,3 +1,36 @@
+过滤与搜索面板
+
+支持按 Event ID、MCA 表名、MCA Key、HUB 表名、HUB Key，以及开始/结束时间进行筛选
+
+提供“Search”按钮应用当前条件、“Reset”按钮清空所有输入
+
+KPI 概览卡片
+
+实时统计并展示：
+
+Green（≤ 5 分钟内成功）
+
+Amber（> 5 分钟且 ≤ 15 分钟的等待或不完全成功）
+
+Red（> 15 分钟或出错）
+
+平均处理时长（OMS→Menshen→Terminal→HUB 各阶段平均时长）
+
+流程可视化表格
+
+每行展示一条事件的完整信息：Event ID、MCA 表/Key、HUB 表/Key、各阶段更新时间、状态
+
+动态效果：各列（OMS→Menshen→Terminal→HUB）依次以滑入动画展现“流动”感
+
+对于尚未完成的阶段，显示旋转的 loading 图标，实时提示该步骤“加载中”
+
+支持 Internal/External 视图切换：切换后可隐藏或显示 Menshen 列
+
+多 HUB 关联
+
+同一个 MCA 事件（Event ID）可能对应 1–3 条不同的 HUB 表/Key 记录
+
+表格会为每一个 HUB 关联生成独立行，保留相同的 MCA 信息
 <!DOCTYPE html>
 <html lang="en">
 <head>
