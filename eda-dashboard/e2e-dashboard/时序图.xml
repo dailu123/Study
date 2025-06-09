@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2025-06-09T00:00:00.000Z" agent="ChatGPT" version="14.6.13" type="device">
+  <diagram id="seq" name="UML Sequence Diagram – Real‑Time Processing (Full)">
+    <mxGraphModel dx="1500" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===== Lifeline Headers ===== -->
+        <!-- Header width 80, x‑step 120 -->
+        <mxCell id="L1" value="Kafka" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;">
+          <mxGeometry x="40" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="L2" value="Consumers" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;">
+          <mxGeometry x="160" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="L3" value="RetryJob" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;">
+          <mxGeometry x="280" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="L4" value="MySQL" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;">
+          <mxGeometry x="400" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="L5" value="pending" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;">
+          <mxGeometry x="520" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="L6" value="EnQueue" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;">
+          <mxGeometry x="640" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="L7" value="EnrichC" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;">
+          <mxGeometry x="760" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="L8" value="ExtDB" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;">
+          <mxGeometry x="880" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="L9" value="event_agg" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;">
+          <mxGeometry x="1000" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="L10" value="DLQ" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;">
+          <mxGeometry x="1120" y="30" width="80" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Lifeline Vertical Dashed Lines ===== -->
+        <!-- y from 60 to 900 -->
+        <mxCell id="V1" edge="1" parent="1" source="L1" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="80" y="60" as="sourcePoint" />
+            <mxPoint x="80" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="V2" edge="1" parent="1" source="L2" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="200" y="60" as="sourcePoint" />
+            <mxPoint x="200" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="V3" edge="1" parent="1" source="L3" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="320" y="60" as="sourcePoint" />
+            <mxPoint x="320" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="V4" edge="1" parent="1" source="L4" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="440" y="60" as="sourcePoint" />
+            <mxPoint x="440" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="V5" edge="1" parent="1" source="L5" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="560" y="60" as="sourcePoint" />
+            <mxPoint x="560" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="V6" edge="1" parent="1" source="L6" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="680" y="60" as="sourcePoint" />
+            <mxPoint x="680" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="V7" edge="1" parent="1" source="L7" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="800" y="60" as="sourcePoint" />
+            <mxPoint x="800" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="V8" edge="1" parent="1" source="L8" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="920" y="60" as="sourcePoint" />
+            <mxPoint x="920" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="V9" edge="1" parent="1" source="L9" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="1040" y="60" as="sourcePoint" />
+            <mxPoint x="1040" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="V10" edge="1" parent="1" source="L10" style="dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1">
+            <mxPoint x="1160" y="60" as="sourcePoint" />
+            <mxPoint x="1160" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===== Messages ===== -->
+        <mxCell id="M1" value="poll(record)" edge="1" parent="1" source="L1" target="L2" style="endArrow=block;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="80" y="120" as="sourcePoint" />
+            <mxPoint x="200" y="120" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M2" value="INSERT/UPSERT" edge="1" parent="1" source="L2" target="L4" style="endArrow=block;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="200" y="160" as="sourcePoint" />
+            <mxPoint x="440" y="160" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M3" value="save pending" edge="1" parent="1" source="L2" target="L5" style="endArrow=block;dashed=1;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="200" y="200" as="sourcePoint" />
+            <mxPoint x="560" y="200" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M4" value="push(stage4)" edge="1" parent="1" source="L2" target="L6" style="endArrow=block;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="200" y="240" as="sourcePoint" />
+            <mxPoint x="680" y="240" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M5" value="dequeue" edge="1" parent="1" source="L6" target="L7" style="endArrow=block;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="680" y="280" as="sourcePoint" />
+            <mxPoint x="800" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M6" value="batchSelect" edge="1" parent="1" source="L7" target="L8" style="endArrow=block;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="800" y="320" as="sourcePoint" />
+            <mxPoint x="920" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M7" value="result set" edge="1" parent="1" source="L8" target="L7" style="endArrow=open;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="920" y="340" as="sourcePoint" />
+            <mxPoint x="800" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M8" value="batchUpdate extra" edge="1" parent="1" source="L7" target="L4" style="endArrow=block;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="800" y="360" as="sourcePoint" />
+            <mxPoint x="440" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M9" value="INSERT agg" edge="1" parent="1" source="L4" target="L9" style="endArrow=block;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="440" y="400" as="sourcePoint" />
+            <mxPoint x="1040" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M10" value="SELECT due" edge="1" parent="1" source="L3" target="L5" style="endArrow=block;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="320" y="440" as="sourcePoint" />
+            <mxPoint x="560" y="440" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M11" value="reprocess" edge="1" parent="1" source="L3" target="L2" style="endArrow=block;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="320" y="480" as="sourcePoint" />
+            <mxPoint x="200" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="M12" value="produce DLQ" edge="1" parent="1" source="L3" target="L10" style="endArrow=block;dashed=1;html=1;">
+          <mxGeometry relative="1">
+            <mxPoint x="320" y="520" as="sourcePoint" />
+            <mxPoint x="1160" y="520" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
