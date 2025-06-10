@@ -1,38 +1,121 @@
-@startuml RealTimeProcessingSequence
-title Real-Time Processing – Full Sequence
+@startuml RealTimeProcessing_Full
 
-actor Kafka       as K
-participant "Stage\nConsumers"   as C
-participant RetryJob             as R
-database   MySQL                as DB
-database   "event_pending"      as P
-queue      "Enrich\nQueue"      as Q
-participant "Enrich\nConsumer"  as EC
-database   "External DB"        as EXT
-database   "event_agg"          as AGG
-queue      DLQ                  as DLQ
+'--- PARTICIPANTS -----------------------------------------------------------
+actor   User                        as U          #white
+queue   "menshen_oms\nTopic"        as T1         #SkyBlue
+participant "Stage-1 Consumer"      as C1         #lightgray
+database "event_process\n(partition /hr)" as DB   #Cornsilk
+queue   "menshen_oms.DLQ"           as DLQ1       #LightCoral
 
-== Stage Processing ==
-K -> C : poll(record)
-C -> DB : INSERT/UPSERT\n(event_status)
-alt 前置缺失
-  C -> P : INSERT pending
-else Stage4 完成
-  C -> Q : produce(stage4)
+queue   "oms_eda_internal-table\nTopic" as T2     #SkyBlue
+participant "Stage-2 Consumer"      as C2         #lightgray
+queue   "oms_eda_internal-table.DLQ"  as DLQ2     #LightCoral
+
+queue   "journal_log\nTopic"        as T3a        #SkyBlue
+queue   "mca_sync_file\nTopic"      as T3b        #SkyBlue
+participant "Stage-3 Consumer"      as C3         #lightgray
+queue   "journal_log.DLQ"           as DLQ3a      #LightCoral
+queue   "mca_sync_file.DLQ"         as DLQ3b      #LightCoral
+
+participant "Stage-4 Scheduler\n(batch query HUB)" as C4  #lightgray
+database  HUB                       as HUB        #Wheat
+
+queue   "All DLQ Topics\n(merged)"  as DLQ_ALL    #pink
+participant "DLQ Retry Worker\n(exp backoff ×8)" as CR     #lightgray
+
+database "event_completed"          as DBC        #PaleGreen
+database "event_failed"             as DBF        #Tomato
+participant "Mover\nCron"           as MV         #lightgray
+
+'--- STAGE 1 : INSERT -------------------------------------------------------
+== Stage 1: insert ==
+loop for each record
+  T1 -> C1 : poll(batch)
+  group Retry up to 3
+    C1 -> DB : INSERT
+    alt insert OK
+      C1 --> T1 : commit offset
+    else insert FAIL
+      note right: onException (Spring Kafka)\nauto-retry within consumer
+    end
+  end
+  alt after 3 fails
+    C1 -> DLQ1 : produce(record + hdr.retry=3)
+    C1 --> T1  : commit offset
+  end
 end
 
-== Enrichment ==
-Q -> EC : dequeue
-EC -> EXT : batchSelect(eventIds)
-EXT --> EC : result set
-EC -> DB : batchUpdate extra fields
-DB -> AGG : INSERT/UPDATE aggregate
-
-== Retry & DLQ ==
-R -> P : SELECT due
-alt 依赖满足
-  R -> C : reprocess(event)
-else 超过最大重试
-  R -> DLQ : produce(record)
+'--- STAGE 2 : UPDATE menshen status ---------------------------------------
+== Stage 2: update menshen ==
+loop parallel
+  T2 -> C2 : poll(batch)
+  group Retry up to 3
+    C2 -> DB : UPDATE stage2_ts\nWHERE pk match
+    alt update OK
+      C2 --> T2 : commit offset
+    else update FAIL
+      note right: retry x3 then DLQ
+    end
+  end
+  alt 3 fails
+    C2 -> DLQ2 : produce(record + hdr.retry=3)
+    C2 --> T2  : commit offset
+  end
 end
+
+'--- STAGE 3 : UPDATE eda & hub keys ---------------------------------------
+== Stage 3: update EDA & HUB keys ==
+par journal_log
+  T3a -> C3 : poll(batch)
+  group local retry×3
+    C3 -> DB : UPDATE stage3_ts
+    ...
+  end
+  alt fail 3 ×
+    C3 -> DLQ3a
+  end
+end
+and mca_sync_file
+  T3b -> C3 : poll(batch)
+  group local retry×3
+    C3 -> DB : UPDATE hub_key_fields
+  end
+  alt fail 3 ×
+    C3 -> DLQ3b
+  end
+end
+end
+
+'--- STAGE 4 : Batch query HUB ---------------------------------------------
+== Stage 4: query HUB ==
+loop every N sec
+  C4 -> DB : SELECT event_id\nWHERE hub_status IS NULL\nLIMIT M
+  C4 -> HUB : batchQuery(keys)
+  HUB --> C4 : statuses
+  C4 -> DB : UPDATE hub_status/time
+end
+
+'--- DLQ MERGED RETRY -------------------------------------------------------
+== DLQ 统一重试 ==
+DLQ1 -> DLQ_ALL
+DLQ2 -> DLQ_ALL
+DLQ3a -> DLQ_ALL
+DLQ3b -> DLQ_ALL
+
+DLQ_ALL -> CR : subscribe(dlqRecord)
+group exponential backoff ×8
+  CR -> (respective stage) : re-dispatch
+end
+alt ≥8 attempts
+  CR -> DBF : insert to event_failed
+end
+
+'--- COMPLETED & FAILED MOVER ----------------------------------------------
+== 数据搬运 ==
+C1 --> DB : (row status=completed)
+MV -> DB : scan completed
+MV -> DBC : move rows OK
+MV -> DB : scan failed TTL
+MV -> DBF: move failures
+
 @enduml
