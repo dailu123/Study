@@ -1,3 +1,83 @@
+方法一：编程式配置（推荐）
+这是最推荐的方法，因为它具有最好的隔离性，只会影响你创建的 Pub/Sub 客户端实例，而不会影响整个 JVM 的网络设置。这种方式通过配置底层的 gRPC 传输通道来实现。
+核心思路：
+创建一个 ProxyDetector 来指定你的代理服务器地址。
+使用 InstantiatingGrpcChannelProvider 并将 ProxyDetector 配置进去。
+在构建 Publisher 或 Subscriber 时，使用这个自定义的 TransportChannelProvider。
+示例代码 (以 Publisher 为例):
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
+import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.cloud.pubsub.v1.Publisher;
+import com.google.pubsub.v1.ProjectTopicName;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.ProxyDetector;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import javax.annotation.Nullable;
+
+public class PubSubProxyExample {
+
+    public static void main(String... args) throws Exception {
+        // 1. 你的项目和主题信息
+        String projectId = "your-gcp-project-id";
+        String topicId = "your-topic-id";
+        ProjectTopicName topicName = ProjectTopicName.of(projectId, topicId);
+
+        // 2. 定义你的代理服务器地址和端口
+        String proxyHost = "your-proxy-host";
+        int proxyPort = 8888; // 你的代理端口
+        final SocketAddress proxyAddress = new InetSocketAddress(proxyHost, proxyPort);
+
+        // 3. 创建一个 ProxyDetector
+        // 这个 Detector 会告诉 gRPC 通道如何连接到代理
+        ProxyDetector proxyDetector = new ProxyDetector() {
+            @Nullable
+            @Override
+            public io.grpc.ProxiedSocketAddress detect() {
+                // 如果代理需要用户名和密码认证，请使用下面的 builder
+                // return io.grpc.ProxiedSocketAddress.newBuilder()
+                //     .setProxyAddress(proxyAddress)
+                //     .setUsername("your-proxy-user")
+                //     .setPassword("your-proxy-password")
+                //     .build();
+                
+                // 如果代理不需要认证
+                return io.grpc.ProxiedSocketAddress.create(proxyAddress);
+            }
+        };
+
+        // 4. 创建一个配置了代理的 TransportChannelProvider
+        TransportChannelProvider channelProvider =
+            InstantiatingGrpcChannelProvider.newBuilder()
+                .setChannelConfigurator(
+                    // 将 ProxyDetector 应用到 ManagedChannelBuilder
+                    (managedChannelBuilder) -> managedChannelBuilder.proxyDetector(proxyDetector))
+                .build();
+
+        // 5. 使用自定义的 ChannelProvider 构建 Publisher
+        Publisher publisher = null;
+        try {
+            publisher = Publisher.newBuilder(topicName)
+                .setChannelProvider(channelProvider)
+                // 如果你需要设置凭证，也在这里设置
+                // .setCredentialsProvider(FixedCredentialsProvider.create(...))
+                .build();
+            
+            System.out.println("Publisher with proxy created successfully for topic: " + topicName);
+            // ... 在这里使用 publisher 发送消息 ...
+
+        } finally {
+            if (publisher != null) {
+                publisher.shutdown();
+                publisher.awaitTermination(1, java.util.concurrent.TimeUnit.MINUTES);
+            }
+        }
+    }
+}
+
+
+
 NameServer:
 Component Description: NameServer is responsible for maintaining the routing information of all the message queues in the RocketMQ cluster. It acts as a lookup service that helps clients discover the appropriate broker for producing or consuming messages.
 Critical Journeys/Services Impacted if Unavailable: If NameServer is unavailable, clients will not be able to discover the brokers, leading to failures in producing or consuming messages.
