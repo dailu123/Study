@@ -1,3 +1,79 @@
+好的，完全没有问题。根据我们最近的对话，包括你提供的表结构截图和详细的功能描述，我可以为你梳理出一个非常清晰、层次分明的需求文档。这份文档可以帮助你和你的同事对齐目标，理解项目的复杂性和核心任务。
+
+---
+
+### **项目需求高级概述 (High-Level Requirement Summary)**
+
+我们要构建一个高级的、实时的**流式数据处理与聚合系统**。该系统的核心任务是消费来自多个不同Kafka Topic（`topic3`, `topic4`等）的事件流，对这些事件进行**数据增强（Enrichment）**、**状态聚合（State Aggregation）**和**条件合并（Conditional Merging）**，最终将一个完整、关联的业务视图持久化到MySQL数据库中。
+
+整个系统的设计必须将**性能**和**效率**放在首位，因此要求大量利用 **Redis 作为高速缓存和中间状态存储**，以减少对后端MySQL的直接和频繁访问。
+
+---
+
+### **详细功能需求分解 (Detailed Functional Requirements)**
+
+#### **1. 核心目标：构建一个聚合宽表 (`batch_eda_hub_proccess_detail`)**
+
+*   系统的最终产出物是一张名为 `batch_eda_hub_proccess_detail` 的MySQL表。
+*   这张表的每一行代表一个由 `topic3` 和 `topic4` 事件流共同构成的、完整的业务记录。
+*   一条完整的记录必须包含来自 `topic3` 和 `topic4` 的数据。这两部分数据通过一个**复合关联键 (`join_key`)** 进行唯一关联。
+
+#### **2. 数据源与处理逻辑：Topic by Topic**
+
+##### **2.1. `Topic3` 数据处理**
+
+`Topic3` 的消息需要根据其内部的 `msgType` 字段进行分流处理：
+
+*   **A. 针对 `msgType = 3` 的主流程数据：**
+    1.  **消息过滤**: 只处理 `msgType` 为 `3` 的消息。
+    2.  **数据提取**: 从消息中提取 `journal_log_topic_msg_id`, `event_id`, `terminal_update_time`, `terminal_status`, `terminal_subscription_id` 等字段。
+    3.  **数据增强 (Enrichment)**:
+        *   这是一个**关键步骤**。需要根据提取出的 `terminal_subscription_id`，去一个外部的MySQL关联表中查询对应的 `tgt_table_name` 和 `tgt_direct`。
+        *   **性能要求**: 直接查库会有性能瓶颈。因此，系统启动时必须将这张**“订阅ID -> 目标信息”**的映射表**完整加载到Redis缓存**中。后续所有查询都应直接访问Redis。
+    4.  **构建关联键 (`join_key`)**: 将 `event_id`, `tgt_table_name`, `tgt_direct` 三个字段拼接起来，形成唯一的 `join_key`。这个 `join_key` 是后续与 `topic4` 数据配对的依据。
+
+*   **B. 针对 `msgType = 2` 的旁路状态数据：**
+    1.  **消息过滤**: 只处理 `msgType` 为 `2` 的消息。
+    2.  **数据提取**: 从消息中提取 `serviceId` 和 `terminal_status`。
+    3.  **双重存储**: 将 `(serviceId, terminal_status)` 这对键值信息同时存入两个地方：
+        *   **存入Redis**: 作为热数据，供其他系统或后续流程进行快速查询。
+        *   **存入MySQL**: 存入一张专用的 `service_status_cache` 表中，作为持久化的冷备份。查询逻辑应遵循 **“先查Redis，未命中再查MySQL”** 的缓存模式。
+
+##### **2.2. `Topic4` 数据处理**
+
+1.  **数据提取**: 从消息中提取 `event_id`, `tgt_table_name`, `tgt_direct` 等字段。
+2.  **数据增强 (Enrichment)**:
+    *   **第一层增强**: 根据 `tgt_table_name` 和 `tgt_direct`，也需要去关联表中反向查询出 `terminal_subscription_id`。
+    *   **构建关联键 (`join_key`)**: 将 `event_id`, `tgt_table_name`, `tgt_direct`（可能还包括刚查到的`terminal_subscription_id`）拼接起来，形成与 `topic3` 相同的 `join_key`。
+    *   **第二层增强**:
+        *   需要根据 `tgt_table_name` 去查询另一张**“表名 -> 主键字段列表”**的映射关系。
+        *   **性能要求**: 这张映射表同样需要在系统启动时**加载到Redis缓存**中。
+        *   根据从Redis中获取到的主键字段列表（一个表可能有多个字段），从`topic4`的原始`message`负载中抽取对应的值，并将它们拼接起来，生成最终的 `tgt_pk_value` 字段。
+
+#### **3. 核心合并与持久化逻辑**
+
+*   **去重与唯一性**: 由同一个 `join_key` 标识的 `topic3` 和 `topic4` 数据，最终在 `batch_eda_hub_proccess_detail` 表中只能**存在一行**记录。
+*   **状态管理与合并策略**:
+    *   **高性能要求**: 为了避免频繁地对MySQL进行“查询-更新”操作，要求实现一个**基于Redis的中间暂存区（Staging Area）**。
+    *   **流程**:
+        1.  当一条来自 `topic3` 或 `topic4` 的消息被处理和增强后，不直接写入MySQL。
+        2.  而是将这个“半成品”数据存入Redis的一个Hash结构中，以 `join_key` 作为主键，以 `topic_name`（如'topic3'）作为field。
+        3.  每次存入后，检查该 `join_key` 下是否已经集齐了 `topic3` 和 `topic4` 两部分数据。
+        4.  一旦集齐，就将这两部分数据从Redis中取出，合并成一条完整的记录。
+        5.  将合并后的完整记录**批量地**写入最终的MySQL表 `batch_eda_hub_proccess_detail` 中，并从Redis暂存区删除该 `join_key` 的数据。
+*   **条件更新逻辑**:
+    *   当向MySQL写入数据时（无论是新插入还是更新已有的行），必须遵循**“时间戳优先”**的原则。
+    *   只有当新消息中的时间戳字段（如 `terminal_update_time`, `tgt_update_time`）**大于**数据库中已有记录的时间戳时，才进行更新。否则，保持旧值不变。这需要通过 `INSERT ... ON DUPLICATE KEY UPDATE ... IF(...)` 这样的SQL语句来实现。
+
+---
+
+### **非功能性需求 (Non-Functional Requirements)**
+
+1.  **高性能**: 系统的设计必须以吞吐量和低延迟为目标，通过缓存和批量处理来达成。
+2.  **高可靠**: 需要有幂等性设计，防止重复消息导致数据错乱。
+3.  **可扩展**: 架构应易于扩展，未来接入 `topic5`, `topic6` 时，应尽可能少地改动核心代码和表结构。
+4.  **可维护**: 代码结构清晰，职责分明，便于新同事理解和维护。
+
 好的，我完全理解了你这次的需求。这是一个非常复杂且真实的流处理场景，融合了**数据增强（Data Enrichment）、多流合并（Multi-Stream Join）、状态管理、缓存策略和条件更新**。
 
 你提出的思路非常清晰，特别是利用 Redis 加速数据关联和在处理过程中管理状态，这正是构建高性能流处理应用的关键。
