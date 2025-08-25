@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Summary Mapping · 合并视图（每个 Source Table 一行）</title>
+  <style>
+    :root{
+      --bg:#0f1420; --panel:#141a2a; --muted:#7d8aa5; --text:#e6eaf2; --border:#26314a;
+      --green:#2ecc71; --red:#e74c3c; --blue:#3498db; --amber:#f39c12; --chip:#1e2740;
+      --row-red:#2b0f12; --row-blue:#0f1c2b; --row-amber:#2b1f0f;
+      --shadow: 0 6px 20px rgba(0,0,0,.25);
+    }
+    html,body{height:100%;}
+    body{margin:0;background:linear-gradient(180deg,#0b1020,#0f1420 20%,#0f1420);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";}
+    .container{max-width:1400px;margin:24px auto;padding:0 16px;}
+    header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+    h1{font-size:24px;letter-spacing:.3px;margin:0 10px 0 0}
+    .tag{font-size:12px;color:#c7d2fe;background:#1f2545;border:1px solid var(--border);padding:2px 8px;border-radius:999px}
+
+    .toolbar{display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:12px;align-items:center;background:var(--panel);padding:12px 12px;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow)}
+    .toolbar .group{display:flex;gap:10px;align-items:center}
+    label{font-size:12px;color:var(--muted)}
+    input,select{background:#0e1424;color:var(--text);border:1px solid var(--border);padding:8px 10px;border-radius:10px;outline:none}
+    input[type="date"]{padding:7px 10px}
+    .search{width:100%;}
+    .switch{display:flex;align-items:center;gap:8px}
+    .switch input{appearance:none;width:38px;height:22px;background:#2a3655;border-radius:999px;position:relative;transition:.2s;border:1px solid var(--border)}
+    .switch input:checked{background:#214d2e;border-color:#2c6a3d}
+    .switch input::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#cbd5e1;transition:.2s}
+    .switch input:checked::after{left:18px;background:#e5ffe8}
+    .muted{color:var(--muted)}
+
+    .table-wrap{margin-top:14px;background:var(--panel);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#10182c;border-bottom:1px solid var(--border);font-weight:600;font-size:12px;color:#b8c2de;text-align:left;padding:10px 12px;z-index:1}
+    tbody td{padding:12px;border-bottom:1px solid var(--border)}
+    tbody tr:hover{background:#151d33}
+    .row-stripe{width:4px;border-radius:0 6px 6px 0}
+
+    .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 8px;font-weight:600;font-size:12px;border:1px solid transparent}
+    .badge.green{background:rgba(46,204,113,.18);border-color:rgba(46,204,113,.25)}
+    .badge.blue{background:rgba(52,152,219,.18);border-color:rgba(52,152,219,.25)}
+    .badge.red{background:rgba(231,76,60,.18);border-color:rgba(231,76,60,.25)}
+    .badge.gray{background:rgba(99,110,139,.22);border-color:rgba(99,110,139,.28)}
+
+    .chip{display:inline-flex;align-items:center;border:1px solid var(--border);background:var(--chip);padding:2px 8px;border-radius:999px;margin-right:6px;margin-bottom:4px;font-size:12px}
+    .chip.more{cursor:pointer}
+
+    .actions button{background:#0e1424;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:10px;cursor:pointer}
+    .actions button:hover{background:#17203a}
+
+    .details{background:#0e1424;border-top:1px dashed var(--border)}
+    .details h4{margin:0 0 8px 0;font-size:13px;color:#bfcef7}
+    .subtable{width:100%;border-collapse:separate;border-spacing:0}
+    .subtable th{background:#0f162b;color:#b9c6ea;font-size:12px;padding:8px;border-bottom:1px solid var(--border)}
+    .subtable td{padding:8px;border-bottom:1px solid var(--border)}
+
+    .hint{font-size:12px;color:var(--muted)}
+    .leftbar{width:4px}
+
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:var(--muted);font-size:12px}
+
+    .row-failed{background:linear-gradient(90deg,rgba(231,76,60,.12),transparent)}
+    .row-progress{background:linear-gradient(90deg,rgba(52,152,219,.12),transparent)}
+
+    .sortable{cursor:pointer}
+    .sortable::after{content:"\25B4\25BE";font-size:10px;margin-left:6px;color:var(--muted)}
+    .nowrap{white-space:nowrap}
+      /* 叠加状态进度条 */
+    .status-cell{min-width:220px}
+    .stackbar{display:flex;align-items:center;width:240px;height:12px;background:#1b2238;border:1px solid var(--border);border-radius:999px;overflow:hidden}
+    .stackbar .seg{height:100%}
+    .stackbar .seg.green{background:rgba(46,204,113,.75)}
+    .stackbar .seg.blue{background:rgba(52,152,219,.75)}
+    .stackbar .seg.red{background:rgba(231,76,60,.8)}
+    .status-legend{font-size:12px;color:var(--muted);margin-top:6px}
+      /* 进度条覆盖数字 */
+    .stackbar{position:relative}
+    .stackbar .label{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-weight:700;font-size:12px;color:#f3f6ff;text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none;white-space:nowrap}
+    .stackbar.small{width:180px;height:10px}
+    .stackbar.small .label{font-size:11px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Summary Mapping</h1>
+      <span class="tag">合并视图 · 每个 Source Table 一行</span>
+      <span class="muted" id="lastRefresh"></span>
+    </header>
+
+    <section class="toolbar">
+      <div class="group">
+        <label for="date">数据日期</label>
+        <input id="date" type="date" />
+      </div>
+      <div class="group">
+        <label for="status">状态</label>
+        <select id="status">
+          <option value="all">全部</option>
+          <option value="abnormal">异常优先</option>
+          <option value="failed">Failed</option>
+          <option value="in_progress">In Progress</option>
+          <option value="normal">正常</option>
+        </select>
+      </div>
+      <div class="group">
+        <label for="search">搜索</label>
+        <input class="search" id="search" type="text" placeholder="按 source / hub / topic 关键字过滤…" />
+      </div>
+      <div class="group" style="justify-content:flex-end">
+        <div class="switch"><input id="autorefresh" type="checkbox" /><span class="muted">自动刷新（10s）</span></div>
+      </div>
+    </section>
+
+    <div class="table-wrap">
+      <table id="aggTable">
+        <thead>
+          <tr>
+            <th class="leftbar"></th>
+            <th class="sortable" data-key="source_table">Source Table</th>
+            <th>HUB Tables</th>
+            <th class="sortable" data-key="statusBar">Status</th>
+            <th class="sortable" data-key="avgLatencyMs">Latency (avg/max)</th>
+            <th class="sortable" data-key="lastRecon">Last Reconciled</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      <span class="hint">口径：Failed = (EDA 或 Topic 失败)；In Progress/Completed 取 HUB 日志状态；延迟为均值/最大。</span>
+      <button id="exportCsv" class="actions">导出 CSV</button>
+    </div>
+  </div>
+
+<script>
+// --- 示例原始明细数据（可替换为接口返回） --------------------------------------
+const rawRows = [
+  // —— CM_PB_INF ——
+  {source_system:'CM', source_table:'CM_PB_INF', source_event_type:'INSERT', hub_table:'ECUSTP', hub_event_type:'UPDATE', eda_status:'Success', status_from_hub_log:'In progress', data_sync_topic_status:'Failure', source_record_count:1, eda_record_count:1, topic_record_count:1, avg_latency_ms:311, max_latency_ms:311, last_recon:'2025-08-25 11:51:52', data_date:'2025-08-25'},
+  {source_system:'CM', source_table:'CM_PB_INF', source_event_type:'UPDATE', hub_table:'ECUSTP', hub_event_type:'UPDATE', eda_status:'Failure', status_from_hub_log:'In progress', data_sync_topic_status:'Failure', source_record_count:6, eda_record_count:6, topic_record_count:5, avg_latency_ms:297, max_latency_ms:304, last_recon:'2025-08-25 11:51:52', data_date:'2025-08-25'},
+  {source_system:'CM', source_table:'CM_PB_INF', source_event_type:'UPDATE', hub_table:'ECUSTP', hub_event_type:'UPDATE', eda_status:'Failure', status_from_hub_log:'Completed', data_sync_topic_status:'Failure', source_record_count:6, eda_record_count:6, topic_record_count:5, avg_latency_ms:280, max_latency_ms:280, last_recon:'2025-08-25 11:51:52', data_date:'2025-08-25'},
+  {source_system:'CM', source_table:'CM_PB_INF', source_event_type:'UPDATE', hub_table:'ECUPROF', hub_event_type:'UPSERT', eda_status:'Success', status_from_hub_log:'Completed', data_sync_topic_status:'Success', source_record_count:2, eda_record_count:2, topic_record_count:2, avg_latency_ms:150, max_latency_ms:190, last_recon:'2025-08-25 11:50:03', data_date:'2025-08-25'},
+
+  // —— CM_ACCT_BASE ——
+  {source_system:'CM', source_table:'CM_ACCT_BASE', source_event_type:'UPDATE', hub_table:'ECUACC', hub_event_type:'UPDATE', eda_status:'Success', status_from_hub_log:'Completed', data_sync_topic_status:'Success', source_record_count:100, eda_record_count:100, topic_record_count:100, avg_latency_ms:120, max_latency_ms:220, last_recon:'2025-08-25 11:51:40', data_date:'2025-08-25'},
+  {source_system:'CM', source_table:'CM_ACCT_BASE', source_event_type:'INSERT', hub_table:'ECUACC', hub_event_type:'INSERT', eda_status:'Success', status_from_hub_log:'Completed', data_sync_topic_status:'Success', source_record_count:30, eda_record_count:30, topic_record_count:30, avg_latency_ms:98, max_latency_ms:180, last_recon:'2025-08-25 11:49:22', data_date:'2025-08-25'},
+  {source_system:'CM', source_table:'CM_ACCT_BASE', source_event_type:'UPDATE', hub_table:'ECUPROF', hub_event_type:'UPSERT', eda_status:'Success', status_from_hub_log:'In progress', data_sync_topic_status:'Success', source_record_count:12, eda_record_count:12, topic_record_count:12, avg_latency_ms:210, max_latency_ms:260, last_recon:'2025-08-25 11:52:10', data_date:'2025-08-25'},
+
+  // —— CM_TRX_FLOW ——
+  {source_system:'CM', source_table:'CM_TRX_FLOW', source_event_type:'UPDATE', hub_table:'ECUTRX', hub_event_type:'UPDATE', eda_status:'Success', status_from_hub_log:'In progress', data_sync_topic_status:'Success', source_record_count:70, eda_record_count:70, topic_record_count:70, avg_latency_ms:450, max_latency_ms:700, last_recon:'2025-08-25 11:48:10', data_date:'2025-08-25'},
+  {source_system:'CM', source_table:'CM_TRX_FLOW', source_event_type:'UPDATE', hub_table:'ECUTRX', hub_event_type:'UPDATE', eda_status:'Success', status_from_hub_log:'Completed', data_sync_topic_status:'Failure', source_record_count:20, eda_record_count:20, topic_record_count:0, avg_latency_ms:520, max_latency_ms:820, last_recon:'2025-08-25 11:49:55', data_date:'2025-08-25'},
+  {source_system:'CM', source_table:'CM_TRX_FLOW', source_event_type:'INSERT', hub_table:'ECUTRX', hub_event_type:'INSERT', eda_status:'Failure', status_from_hub_log:'In progress', data_sync_topic_status:'Failure', source_record_count:8, eda_record_count:8, topic_record_count:0, avg_latency_ms:760, max_latency_ms:910, last_recon:'2025-08-25 11:54:20', data_date:'2025-08-25'}
+];
+
+// --- 工具函数 ---------------------------------------------------------------
+const $ = (q)=>document.querySelector(q);
+const fmt = (n)=> n==null? '—' : new Intl.NumberFormat('en-US').format(n);
+const fmtMs = (n)=> n==null? '—' : `${n} ms`;
+const parseTime = (s)=> new Date(s.replace(/-/g,'/'));
+
+function mergedStatus(row){
+  if((row.eda_status||'').toLowerCase()==='failure' || (row.data_sync_topic_status||'').toLowerCase()==='failure') return 'failed';
+  const h=(row.status_from_hub_log||'').toLowerCase();
+  if(h.includes('in progress')||h.includes('in_progress')) return 'in_progress';
+  if(h.includes('completed')||h.includes('complete')) return 'completed';
+  return 'other';
+}
+
+function aggregate(rows){
+  const groups = new Map();
+  for(const r of rows){
+    const key=r.source_table;
+    const g = groups.get(key) || {
+      source_table:r.source_table, source_system:r.source_system,
+      hubTables:new Set(), rows:[],
+      completeCount:0,inProgressCount:0,failedCount:0,otherCount:0,
+      srcRecordTotal:0, edaRecordTotal:0, topicRecordTotal:0,
+      avgLatencySum:0, avgLatencyN:0, maxLatencyMs:0,
+      lastRecon:null
+    };
+    g.hubTables.add(r.hub_table);
+    const st = mergedStatus(r);
+    if(st==='completed') g.completeCount++; else if(st==='in_progress') g.inProgressCount++; else if(st==='failed') g.failedCount++; else g.otherCount++;
+    g.srcRecordTotal += (r.source_record_count||0);
+    g.edaRecordTotal += (r.eda_record_count||0);
+    g.topicRecordTotal += (r.topic_record_count||0);
+    if(r.avg_latency_ms!=null){ g.avgLatencySum += r.avg_latency_ms; g.avgLatencyN++; }
+    if(r.max_latency_ms!=null){ g.maxLatencyMs = Math.max(g.maxLatencyMs, r.max_latency_ms); }
+    const t = parseTime(r.last_recon);
+    g.lastRecon = g.lastRecon? (t>g.lastRecon? t : g.lastRecon) : t;
+    g.rows.push({...r, merged_status:st});
+    groups.set(key,g);
+  }
+  return [...groups.values()].map(g=>({
+    ...g,
+    hubTables:[...g.hubTables].sort(),
+    avgLatencyMs: g.avgLatencyN? Math.round(g.avgLatencySum/g.avgLatencyN) : null,
+  }));
+}
+
+// --- 渲染 ------------------------------------------------------------------
+let sortKey = 'source_table';
+let sortAsc = true;
+
+function renderStackBar(g){
+  const total = g.completeCount + g.inProgressCount + g.failedCount + g.otherCount;
+  const c = g.completeCount, p = g.inProgressCount, f = g.failedCount;
+  const pc = total? (c/total*100) : 0;
+  const pp = total? (p/total*100) : 0;
+  const pf = total? (f/total*100) : 0;
+  const title = `Completed: ${c} | In Progress: ${p} | Failed: ${f}`;
+  return `
+    <div class="status-cell" title="${title}">
+      <div class="stackbar">
+        <div class="seg green" style="width:${pc}%"></div>
+        <div class="seg blue" style="width:${pp}%"></div>
+        <div class="seg red" style="width:${pf}%"></div>
+        <div class="label">C ${c} / P ${p} / F ${f}</div>
+      </div>
+    </div>`;
+}
+
+function render(){
+  // 过滤
+  const dateVal = $('#date').value || '';
+  const statusVal = $('#status').value;
+  const term = ($('#search').value||'').trim().toLowerCase();
+
+  let filtered = rawRows.slice();
+  if(dateVal){ filtered = filtered.filter(r=> r.data_date===dateVal); }
+  if(term){ filtered = filtered.filter(r=> (r.source_table+ ' ' + r.hub_table + ' ' + (r.source_event_type||'')).toLowerCase().includes(term)); }
+
+  let groups = aggregate(filtered);
+  if(statusVal==='failed') groups = groups.filter(g=> g.failedCount>0);
+  else if(statusVal==='in_progress') groups = groups.filter(g=> g.inProgressCount>0 && g.failedCount===0);
+  else if(statusVal==='normal') groups = groups.filter(g=> g.failedCount===0 && g.inProgressCount===0);
+  else if(statusVal==='abnormal') groups = groups.filter(g=> g.failedCount>0 || (g.avgLatencyMs||0) > 500);
+
+  // 排序
+  groups.sort((a,b)=>{
+    const av = a[sortKey]; const bv = b[sortKey];
+    let res=0;
+    if(sortKey==='lastRecon') res = (a.lastRecon||0) - (b.lastRecon||0);
+    else if(sortKey==='statusBar'){
+      // 先按失败数，再按进行中数，最后按完成数（升序：更健康的排前）
+      res = (a.failedCount - b.failedCount) || (a.inProgressCount - b.inProgressCount) || (b.completeCount - a.completeCount);
+    }
+    else if(typeof av === 'number' && typeof bv === 'number') res = av - bv;
+    else res = String(av).localeCompare(String(bv));
+    return sortAsc? res : -res;
+  });
+
+  const tbody = $('#tbody');
+  tbody.innerHTML = '';
+  for(const g of groups){
+    // 行颜色
+    const rowClass = g.failedCount>0? 'row-failed' : (g.inProgressCount>0? 'row-progress' : '');
+
+    const tr = document.createElement('tr');
+    tr.className = rowClass;
+
+    const left = document.createElement('td'); left.className='row-stripe'; left.style.width='4px';
+    left.style.background = g.failedCount>0? 'linear-gradient(#f33,#f33)' : (g.inProgressCount>0? 'linear-gradient(#39f,#39f)' : 'linear-gradient(#2d364d,#2d364d)');
+    tr.appendChild(left);
+
+    const hubPreview = g.hubTables.slice(0,2).map(h=>`<span class="chip" title="${h}">${h}</span>`).join('') + (g.hubTables.length>2? `<span class="chip more" title="${g.hubTables.join(', ')}">+${g.hubTables.length-2}</span>`: '');
+
+    tr.insertAdjacentHTML('beforeend', `
+      <td><div style=\"font-weight:600\">${g.source_table}</div><div class=\"muted\" style=\"font-size:12px\">${g.source_system||''}</div></td>
+      <td>${hubPreview}</td>
+      <td>${renderStackBar(g)}</td>
+      <td class=\"nowrap\">${fmtMs(g.avgLatencyMs)} / ${fmtMs(g.maxLatencyMs)}</td>
+      <td class=\"nowrap\">${g.lastRecon? g.lastRecon.toLocaleString(): '—'}</td>
+      <td class=\"actions\"><button class=\"btn-details\">Details</button></td>
+    `);
+
+    tbody.appendChild(tr);
+
+    // 详情行
+    const dtr=document.createElement('tr');
+    const dtd=document.createElement('td'); dtd.colSpan=7; dtd.className='details'; dtd.style.display='none';
+    dtd.appendChild(renderDetails(g));
+    dtr.appendChild(dtd);
+    tbody.appendChild(dtr);
+
+    tr.querySelector('.btn-details').addEventListener('click', ()=>{
+      dtd.style.display = dtd.style.display==='none'? 'table-cell' : 'none';
+    });
+  }
+
+  // 更新时间
+  $('#lastRefresh').textContent = `最后刷新：${new Date().toLocaleTimeString()}  ·  共 ${groups.length} 个 Source Table`;
+}
+
+function renderDetails(g){
+  // 明细：按 (hub_table, source_event_type, hub_event_type) 聚合，并用小号堆叠条展示状态
+  const groups = new Map();
+  for(const r of g.rows){
+    const hub = r.hub_table || '—';
+    const se = (r.source_event_type || '—').toUpperCase();
+    const he = (r.hub_event_type || '—').toUpperCase();
+    const key = hub + '||' + se + '||' + he;
+    const x = groups.get(key) || {hub_table:hub, source_evt:se, hub_evt:he, complete:0, in_progress:0, failed:0, other:0, avgSum:0, avgN:0, maxLatency:0, lastRecon:null};
+    const st = r.merged_status;
+    if(st==='completed') x.complete++; else if(st==='in_progress') x.in_progress++; else if(st==='failed') x.failed++; else x.other++;
+    if(r.avg_latency_ms!=null){ x.avgSum += r.avg_latency_ms; x.avgN++; }
+    if(r.max_latency_ms!=null){ x.maxLatency = Math.max(x.maxLatency, r.max_latency_ms); }
+    const t = parseTime(r.last_recon);
+    x.lastRecon = x.lastRecon? (t> x.lastRecon ? t : x.lastRecon) : t;
+    groups.set(key,x);
+  }
+  const order = {INSERT:1, UPSERT:2, UPDATE:3, DELETE:4, '—':5};
+  const list = [...groups.values()].map(x=>({
+    ...x,
+    avgLatency: x.avgN? Math.round(x.avgSum/x.avgN) : null
+  })).sort((a,b)=> a.hub_table.localeCompare(b.hub_table) || (order[a.source_evt]||9)-(order[b.source_evt]||9) || (order[a.hub_evt]||9)-(order[b.hub_evt]||9));
+
+  const wrap = document.createElement('div');
+  wrap.style.padding='12px 12px 16px';
+  const title = document.createElement('h4');
+  title.textContent = `${g.source_table} · 明细（${list.length} 条组合）`;
+  wrap.appendChild(title);
+
+  const table = document.createElement('table'); table.className='subtable';
+  table.innerHTML = `
+    <thead><tr>
+      <th>Hub Table<\/th><th>Direction<\/th><th>Status<\/th><th>Latency (avg/max)<\/th><th>Last Reconciled<\/th>
+    <\/tr><\/thead>
+    <tbody>
+      ${list.map(x=>{
+        const gg = {completeCount:x.complete, inProgressCount:x.in_progress, failedCount:x.failed, otherCount:x.other};
+        return `<tr>
+          <td><span class=\"chip\">${x.hub_table}<\/span><\/td>
+          <td><span class=\"chip\">${x.source_evt}<\/span> <span class=\"muted\">→<\/span> <span class=\"chip\">${x.hub_evt}<\/span><\/td>
+          <td>${renderStackBar(gg).replace('class=\"stackbar\"','class=\"stackbar small\"')}<\/td>
+          <td>${fmtMs(x.avgLatency)} / ${fmtMs(x.maxLatency)}<\/td>
+          <td>${x.lastRecon? x.lastRecon.toLocaleString(): '—'}<\/td>
+        <\/tr>`;
+      }).join('')}
+    <\/tbody>`;
+
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// --- 交互 ---------------------------------------------------------------
+$('#status').addEventListener('change', render);
+$('#search').addEventListener('input', ()=>{ render(); });
+
+// 列头排序
+for(const th of document.querySelectorAll('th.sortable')){
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(sortKey===key) sortAsc = !sortAsc; else { sortKey=key; sortAsc=true; }
+    render();
+  });
+}
+
+// 导出 CSV（导出聚合数据）
+$('#exportCsv').addEventListener('click', ()=>{
+  const dateVal = $('#date').value || '';
+  const term = ($('#search').value||'').trim().toLowerCase();
+  let filtered = rawRows.slice();
+  if(dateVal){ filtered = filtered.filter(r=> r.data_date===dateVal); }
+  if(term){ filtered = filtered.filter(r=> (r.source_table+ ' ' + r.hub_table).toLowerCase().includes(term)); }
+  const groups = aggregate(filtered);
+  const rows = groups.map(g=>({
+    source_table:g.source_table,
+    hub_tables:g.hubTables.join(';'),
+    completed:g.completeCount,
+    in_progress:g.inProgressCount,
+    failed:g.failedCount,
+    avg_latency_ms:g.avgLatencyMs,
+    max_latency_ms:g.maxLatencyMs,
+    last_reconciled:g.lastRecon? g.lastRecon.toISOString() : ''
+  }));
+  const header = Object.keys(rows[0]||{a:''}).join(',');
+  const csv = [header, ...rows.map(r=> Object.values(r).map(v=>`"${String(v).replaceAll('"','""')}"`).join(','))].join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`summary_agg_${Date.now()}.csv`; a.click(); URL.revokeObjectURL(url);
+});
+
+// 自动刷新 + 模拟增长 demo
+let simTimer=null;
+$('#autorefresh').addEventListener('change', (e)=>{
+  if(e.target.checked){
+    if(simTimer) clearInterval(simTimer);
+    simTimer = setInterval(()=>{ simulateTick(); render(); }, 2000);
+  } else {
+    clearInterval(simTimer); simTimer=null;
+  }
+});
+
+// 初始化日期为样例数据
+(function init(){
+  const d = rawRows[0]?.data_date || new Date().toISOString().slice(0,10);
+  $('#date').value = d; render();
+  // 默认开启自动刷新，模拟数字不断增长
+  $('#autorefresh').checked = true;
+  $('#autorefresh').dispatchEvent(new Event('change'));
+})();
+</script>
+</body>
+</html>
