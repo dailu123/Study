@@ -1,0 +1,324 @@
+import os
+
+def create_file(path, content):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content.strip())
+    print(f"✅ Created: {path}")
+
+# ==========================================
+# 1. Config Definition
+# ==========================================
+file_configs = """
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class ETLConfig:
+    \"\"\"
+    Configuration Data Class.
+    Defines the parameters for a specific DAG.
+    \"\"\"
+    dag_id: str
+    schedule: str
+    
+    # Extraction settings
+    source_table: str
+    extract_sql_template: str = "SELECT * FROM {table} WHERE partition_id = {pid} AND status = 'pending'"
+    
+    # Transformation settings
+    lookup_table: Optional[str] = None
+    lookup_key: str = "id"
+    
+    # Loading settings
+    target_table: str = ""
+    
+    # Strategy selection (Default to Generic, can be overridden)
+    strategy_class_name: str = "GenericETLStrategy"
+"""
+
+# ==========================================
+# 2. Interface (Contract)
+# ==========================================
+file_interface = """
+import abc
+import pandas as pd
+
+class AbstractETLStrategy(abc.ABC):
+    \"\"\"
+    The Interface (Contract).
+    All strategies must implement these methods.
+    \"\"\"
+
+    def __init__(self, config):
+        self.config = config
+
+    @abc.abstractmethod
+    def extract(self, partition_id: int) -> pd.DataFrame:
+        \"\"\"Step 1: Read data from Source (PG/Kafka)\"\"\"
+        pass
+
+    @abc.abstractmethod
+    def transform(self, df_staging: pd.DataFrame) -> pd.DataFrame:
+        \"\"\"Step 2: In-Memory Join & Calculation\"\"\"
+        pass
+
+    @abc.abstractmethod
+    def load(self, df_final: pd.DataFrame) -> None:
+        \"\"\"Step 3: Write data to Target (DB2)\"\"\"
+        pass
+"""
+
+# ==========================================
+# 3. Generic Strategy (The Workhorse)
+# ==========================================
+file_generic = """
+import pandas as pd
+import logging
+from etl_core.interfaces import AbstractETLStrategy
+
+# Setup Logger
+logger = logging.getLogger("airflow.task")
+
+class GenericETLStrategy(AbstractETLStrategy):
+    \"\"\"
+    A reusable strategy implementation driven by configuration.
+    Handles standard SQL extraction, simple lookup joins, and batch loading.
+    \"\"\"
+
+    def extract(self, partition_id: int) -> pd.DataFrame:
+        table = self.config.source_table
+        sql = self.config.extract_sql_template.format(table=table, pid=partition_id)
+        
+        logger.info(f"[Generic Extract] Executing SQL: {sql}")
+        
+        # ---------------------------------------------------------
+        # MOCK LOGIC: Replace with actual database hook (e.g., PostgresHook)
+        # df = pd.read_sql(sql, con=engine)
+        # ---------------------------------------------------------
+        data = {
+            'id': [1, 2, 3], 
+            'user_id': [101, 102, 999], 
+            'amount': [100.0, 200.0, 50.0]
+        }
+        df = pd.DataFrame(data)
+        return df
+
+    def transform(self, df_staging: pd.DataFrame) -> pd.DataFrame:
+        if df_staging.empty:
+            return df_staging
+
+        # 1. Standard Lookup Logic (if configured)
+        if self.config.lookup_table:
+            logger.info(f"[Generic Transform] Performing lookup on {self.config.lookup_table}")
+            
+            # MOCK LOGIC: Simulate fetching reference data from DB2
+            hub_data = {
+                'user_id': [101, 102],
+                'region': ['US', 'CN']
+            }
+            df_hub = pd.DataFrame(hub_data)
+            
+            # Memory Join
+            merged = pd.merge(df_staging, df_hub, left_on='user_id', right_on=self.config.lookup_key, how='left')
+            return merged
+        
+        return df_staging
+
+    def load(self, df_final: pd.DataFrame) -> None:
+        target = self.config.target_table
+        logger.info(f"[Generic Load] Writing {len(df_final)} rows to {target}")
+        
+        # ---------------------------------------------------------
+        # MOCK LOGIC: Replace with DB2 Batch Insert
+        # df_final.to_sql(target, if_exists='append')
+        # ---------------------------------------------------------
+        if not df_final.empty:
+            logger.info("Batch insert successful.")
+"""
+
+# ==========================================
+# 4. Custom Strategy (Example Override)
+# ==========================================
+file_custom = """
+import pandas as pd
+from etl_core.strategies.generic_strategy import GenericETLStrategy
+
+class ComplexMathStrategy(GenericETLStrategy):
+    \"\"\"
+    Example of extending the Generic strategy.
+    Reuses Extract and Load, but overrides Transform for specific logic.
+    \"\"\"
+
+    def transform(self, df_staging: pd.DataFrame) -> pd.DataFrame:
+        # 1. Reuse the parent's lookup logic (optional)
+        df = super().transform(df_staging)
+        
+        # 2. Add custom business calculation
+        if 'amount' in df.columns:
+            df['tax_calculated'] = df['amount'] * 0.08
+            
+        return df
+"""
+
+# ==========================================
+# 5. Helper for imports
+# ==========================================
+file_init = ""
+
+# ==========================================
+# 6. The DAG Factory (Entry Point)
+# ==========================================
+file_dag_factory = """
+from airflow import DAG
+from airflow.decorators import task
+from kubernetes.client import models as k8s
+import pendulum
+import importlib
+
+# Import from our plugins
+from etl_core.configs import ETLConfig
+from etl_core.strategies.generic_strategy import GenericETLStrategy
+
+# ---------------------------------------------------------
+# 1. Configuration Registry
+# Define your multiple DAGs here. No coding required.
+# ---------------------------------------------------------
+DAG_CONFIGS = [
+    # Scenario 1: Standard Sync (Uses Generic Strategy)
+    ETLConfig(
+        dag_id="dag_sync_users_daily",
+        schedule="@daily",
+        source_table="stg_users",
+        target_table="dim_users",
+        lookup_table="ref_region",
+        lookup_key="user_id"
+    ),
+    
+    # Scenario 2: Another Standard Sync (Just diff tables)
+    ETLConfig(
+        dag_id="dag_sync_orders_hourly",
+        schedule="@hourly",
+        source_table="stg_orders",
+        target_table="fact_orders"
+    ),
+
+    # Scenario 3: Complex Logic (Uses Custom Class)
+    ETLConfig(
+        dag_id="dag_financial_risk_calc",
+        schedule="0 12 * * *",
+        source_table="stg_loans",
+        target_table="risk_report",
+        strategy_class_name="ComplexMathStrategy" # <--- Custom Override
+    )
+]
+
+# ---------------------------------------------------------
+# 2. K8s Resources (4GB RAM for Pandas)
+# ---------------------------------------------------------
+K8S_RESOURCES = {
+    "pod_override": k8s.V1Pod(
+        spec=k8s.V1PodSpec(
+            containers=[
+                k8s.V1Container(
+                    name="base",
+                    resources=k8s.V1ResourceRequirements(
+                        requests={"memory": "2Gi", "cpu": "1"},
+                        limits={"memory": "4Gi", "cpu": "2"}
+                    )
+                )
+            ]
+        )
+    )
+}
+
+# ---------------------------------------------------------
+# 3. Strategy Factory Helper
+# ---------------------------------------------------------
+def get_strategy_instance(config: ETLConfig):
+    # Default case
+    if config.strategy_class_name == "GenericETLStrategy":
+        return GenericETLStrategy(config)
+    
+    # Dynamic loading for custom classes
+    # Assumes custom strategies are in 'etl_core.strategies.custom_strategy'
+    # or similar path. Here we map manually for simplicity in example.
+    if config.strategy_class_name == "ComplexMathStrategy":
+        from etl_core.strategies.custom_strategy import ComplexMathStrategy
+        return ComplexMathStrategy(config)
+        
+    raise ValueError(f"Unknown strategy: {config.strategy_class_name}")
+
+# ---------------------------------------------------------
+# 4. DAG Generation Loop
+# ---------------------------------------------------------
+for config in DAG_CONFIGS:
+    
+    dag = DAG(
+        dag_id=config.dag_id,
+        schedule_interval=config.schedule,
+        start_date=pendulum.datetime(2023, 1, 1, tz="UTC"),
+        catchup=False,
+        tags=["factory_generated", config.strategy_class_name]
+    )
+    
+    with dag:
+        
+        # The Atomic Task (Wrapper)
+        @task(task_id="atomic_processor", executor_config=K8S_RESOURCES)
+        def run_processor(partition_id: int, cfg=config):
+            import logging
+            try:
+                # A. Instantiate Strategy
+                strategy = get_strategy_instance(cfg)
+                
+                # B. Execute Atomic Steps (Memory Bound)
+                df_raw = strategy.extract(partition_id)
+                df_clean = strategy.transform(df_raw)
+                strategy.load(df_clean)
+                
+                logging.info(f"Partition {partition_id} success.")
+                
+            except Exception as e:
+                logging.error(f"Task failed: {e}")
+                # Add alert logic here
+                raise e
+
+        # Mock Partitions (In reality, get from Kafka/PG)
+        partitions = [1, 2, 3]
+        
+        # Expand (Scalability)
+        run_processor.expand(partition_id=partitions)
+
+    # Register to globals
+    globals()[config.dag_id] = dag
+"""
+
+# ==========================================
+# Execution: Create Files
+# ==========================================
+base_dir = "."  # Current directory
+
+# 1. plugins/etl_core/configs.py
+create_file(os.path.join(base_dir, "plugins/etl_core/configs.py"), file_configs)
+
+# 2. plugins/etl_core/interfaces.py
+create_file(os.path.join(base_dir, "plugins/etl_core/interfaces.py"), file_interface)
+
+# 3. plugins/etl_core/__init__.py
+create_file(os.path.join(base_dir, "plugins/etl_core/__init__.py"), file_init)
+
+# 4. plugins/etl_core/strategies/__init__.py
+create_file(os.path.join(base_dir, "plugins/etl_core/strategies/__init__.py"), file_init)
+
+# 5. plugins/etl_core/strategies/generic_strategy.py
+create_file(os.path.join(base_dir, "plugins/etl_core/strategies/generic_strategy.py"), file_generic)
+
+# 6. plugins/etl_core/strategies/custom_strategy.py
+create_file(os.path.join(base_dir, "plugins/etl_core/strategies/custom_strategy.py"), file_custom)
+
+# 7. dags/dag_factory.py
+create_file(os.path.join(base_dir, "dags/dag_factory.py"), file_dag_factory)
+
+print("\\n🎉 Project structure generated successfully!")
+print("Please ensure the 'plugins' folder is added to your PYTHONPATH or Airflow Plugins directory.")
