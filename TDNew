@@ -1,0 +1,326 @@
+import logging
+from abc import ABC, abstractmethod
+from decimal import Decimal
+from typing import Any, Dict, Callable, Tuple
+
+# Setup simple logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# MODULE 1: models.py
+# Data structures for Source (Input) and Target (Output)
+# =============================================================================
+
+class SLDObject:
+    """
+    Represents the Source Logic Data Object (Input).
+    Simulates the data structure coming from the database or upstream system.
+    """
+    def __init__(self, **kwargs):
+        # Dynamically set attributes for simulation purposes
+        self.__dict__.update(kwargs)
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+class SSEXTUPObject:
+    """
+    Represents the Target Object (Output).
+    This is the row that will be written to the database.
+    """
+    def __init__(self):
+        # Standard fields can be initialized to None or defaults
+        self.VPPGID = None 
+        self.VPCTCD = None
+        self.VPCYCD = None
+        # Dynamic fields will be set via setattr()
+    
+    def __repr__(self):
+        # Helper to print the object state nicely
+        return f"<SSEXTUPObject: {self.__dict__}>"
+
+
+# =============================================================================
+# MODULE 2: rules.py
+# Business Logic Rules (Pure Boolean Logic)
+# Decouples "What is the condition?" from "What field do we fill?"
+# =============================================================================
+
+class BusinessRules:
+    """
+    Central repository for all boolean logic.
+    These methods only return True/False and do not alter data.
+    """
+
+    # --- Scenario Logic (Prefix Determination) ---
+
+    @staticmethod
+    def is_online_vpnr(d: SLDObject) -> bool:
+        """Condition for VPNR: Online process with Flag F."""
+        ref = getattr(d, 'treats_reference', '')
+        flag = getattr(d, 'HFFEXTCP_E1UPFX', '')
+        return ref != "" and flag == "F"
+
+    @staticmethod
+    def is_online_vpun(d: SLDObject) -> bool:
+        """Condition for VPUN: Online process with Flag P."""
+        flag = getattr(d, 'HFFEXTCP_E1UPFX', '')
+        return flag == "P"
+
+    @staticmethod
+    def is_batch_vpnn(d: SLDObject) -> bool:
+        """Condition for VPNN: Batch process with specific system codes."""
+        sys_code = getattr(d, 'system_code', '')
+        deal_code = getattr(d, 'deal_code', '')
+        return sys_code == "OR" and deal_code in ['NP', 'NS']
+
+    # --- Direction Logic (Suffix Determination) ---
+
+    @staticmethod
+    def is_debit(d: SLDObject) -> bool:
+        """
+        Determines if the transaction is Debit.
+        Logic: Transaction code starts with '1' or '3'.
+        """
+        code = str(getattr(d, 'transaction_code', ''))
+        return code.startswith(('1', '3'))
+
+    @staticmethod
+    def is_credit(d: SLDObject) -> bool:
+        """
+        Determines if the transaction is Credit.
+        Logic: Transaction code does NOT start with '1' or '3'.
+        """
+        code = str(getattr(d, 'transaction_code', ''))
+        # Ensure code exists, otherwise default to False or handle error
+        if not code:
+            return False
+        return not code.startswith(('1', '3'))
+
+
+# =============================================================================
+# MODULE 3: base_generator.py
+# The Abstract Base Class (The Core Architecture)
+# =============================================================================
+
+class BaseGenerator(ABC):
+    """
+    Abstract Base Class for generating SSEXTUP objects.
+    
+    Responsibilities:
+    1. Define the 'FIELD_MAPPING' (The Single Source of Truth).
+    2. Enforce subclasses to implement specific calculation logic via @abstractmethod.
+    3. Execute the standard generation flow.
+    """
+
+    def __init__(self):
+        # The Rules class is used here to define conditions
+        rules = BusinessRules
+
+        # =================================================================
+        # EXPLICIT FIELD MAPPING
+        # Format: "Field_Name": (Condition_Function, Value_Calculation_Method)
+        # =================================================================
+        self.FIELD_MAPPING: Dict[str, Tuple[Callable, Callable]] = {
+            
+            # --- VPNR Series (Online / Flag F) ---
+            "VPNRDR": (
+                lambda d: rules.is_online_vpnr(d) and rules.is_debit(d),
+                self._get_debit_value
+            ),
+            "VPNRCR": (
+                lambda d: rules.is_online_vpnr(d) and rules.is_credit(d),
+                self._get_credit_value
+            ),
+            # You can explicitly list DL/CL/D1/C1 here as well...
+            "VPNRDL": (
+                lambda d: rules.is_online_vpnr(d) and rules.is_debit(d),
+                self._get_debit_value
+            ),
+
+            # --- VPUN Series (Online / Flag P) ---
+            "VPUNDR": (
+                lambda d: rules.is_online_vpun(d) and rules.is_debit(d),
+                self._get_debit_value
+            ),
+            "VPUNCR": (
+                lambda d: rules.is_online_vpun(d) and rules.is_credit(d),
+                self._get_credit_value
+            ),
+
+            # --- VPNN Series (Batch) ---
+            "VPNNDR": (
+                lambda d: rules.is_batch_vpnn(d) and rules.is_debit(d),
+                self._get_debit_value
+            ),
+            
+            # ... Add all other 50+ fields here line by line.
+            # This makes the code searchable and self-documenting.
+        }
+
+    # -------------------------------------------------------------------------
+    # Template Method: The Main Execution Flow
+    # -------------------------------------------------------------------------
+    def generate(self, data: SLDObject) -> SSEXTUPObject:
+        row = SSEXTUPObject()
+
+        # 1. Map Static Fields (Common to all logic)
+        self._map_static_fields(row, data)
+
+        # 2. Map Dynamic/Program ID (Enforced by Subclass)
+        row.VPPGID = self.get_program_id()
+
+        # 3. Map Dynamic Fields (Based on Mapping Table)
+        for field_name, (condition_func, value_func) in self.FIELD_MAPPING.items():
+            # Only calculate and assign if the condition is True
+            if condition_func(data):
+                try:
+                    val = value_func(data)
+                    setattr(row, field_name, val)
+                except Exception as e:
+                    logger.error(f"Error calculating {field_name}: {e}")
+
+        return row
+
+    def _map_static_fields(self, row: SSEXTUPObject, data: SLDObject):
+        """Maps fields that never change logic."""
+        # Examples of static mapping
+        base_acct = getattr(data, 'base_acct_no', '000000000000')
+        row.VPCTCD = base_acct[:2] 
+        row.VPCYCD = getattr(data, 'currency', '')
+        # ... map other static fields here
+
+    # -------------------------------------------------------------------------
+    # Internal Helpers (Bridge between Mapping and Core Calculation)
+    # -------------------------------------------------------------------------
+    def _get_debit_value(self, data: SLDObject) -> Decimal:
+        """
+        Helper for Debit fields. 
+        Calls the abstract core calculation.
+        """
+        return self._calculate_core_amount(data)
+
+    def _get_credit_value(self, data: SLDObject) -> Decimal:
+        """
+        Helper for Credit fields.
+        Calls the abstract core calculation.
+        Typically credit values might need sign flipping (e.g., * -1),
+        depending on business requirements.
+        """
+        amount = self._calculate_core_amount(data)
+        # Example: If your logic requires Credit to be negative in the DB
+        # return amount * Decimal("-1")
+        return amount
+
+    # -------------------------------------------------------------------------
+    # ABSTRACT METHODS (The Contract)
+    # Subclasses MUST implement these, or the code will crash on startup.
+    # -------------------------------------------------------------------------
+    
+    @abstractmethod
+    def get_program_id(self) -> str:
+        """
+        Subclasses must define the Program ID (e.g., 'HFFEX01' vs 'HFFWDTD').
+        """
+        pass
+
+    @abstractmethod
+    def _calculate_core_amount(self, data: SLDObject) -> Decimal:
+        """
+        Subclasses must define the specific algorithm to calculate the money.
+        E.g., Logic A uses raw amount, Logic B uses a formula.
+        """
+        pass
+
+
+# =============================================================================
+# MODULE 4: generators.py
+# Concrete Implementations
+# =============================================================================
+
+class StandardGenerator(BaseGenerator):
+    """
+    Logic A: The standard processing logic.
+    """
+    
+    def get_program_id(self) -> str:
+        return "HFFEX01"
+
+    def _calculate_core_amount(self, data: SLDObject) -> Decimal:
+        # Standard logic: Return the transaction amount directly
+        val = getattr(data, 'tran_amt', 0)
+        return Decimal(val)
+
+
+class BibtcppGenerator(BaseGenerator):
+    """
+    Logic B (or Logic 3/4): The specialized processing logic.
+    Inherits all field mappings from BaseGenerator but changes:
+    1. The Program ID
+    2. The Amount Calculation Formula
+    """
+
+    def get_program_id(self) -> str:
+        return "HFFWDTD"
+
+    def _calculate_core_amount(self, data: SLDObject) -> Decimal:
+        # Special logic: e.g., apply a discount or different source field
+        val = getattr(data, 'tran_amt', 0)
+        logger.info("Applying BIBTCPP calculation rules...")
+        return Decimal(val) * Decimal("0.8")  # Example: 80% of value
+
+
+# =============================================================================
+# MODULE 5: main.py
+# Execution
+# =============================================================================
+
+if __name__ == "__main__":
+    # 1. Create Mock Data (Debit Transaction)
+    # Scenario: VPNR (Ref exists, Flag F) + Debit (Code 101)
+    data_debit = SLDObject(
+        treats_reference="REF123",
+        HFFEXTCP_E1UPFX="F",
+        transaction_code="101", 
+        tran_amt=1000.00,
+        base_acct_no="US999888",
+        currency="USD"
+    )
+
+    # 2. Create Mock Data (Credit Transaction)
+    # Scenario: VPUN (Flag P) + Credit (Code 201)
+    data_credit = SLDObject(
+        treats_reference="",
+        HFFEXTCP_E1UPFX="P",
+        transaction_code="201",
+        tran_amt=500.00,
+        base_acct_no="UK777666",
+        currency="GBP"
+    )
+
+    # === TEST 1: Standard Logic ===
+    print("\n--- Running Standard Logic ---")
+    gen_std = StandardGenerator()
+    
+    # Process Debit
+    res1 = gen_std.generate(data_debit)
+    print(f"Input: VPNR Debit | ProgramID: {res1.VPPGID}")
+    print(f"Mapped Field (VPNRDR): {getattr(res1, 'VPNRDR', 'N/A')}")
+    print(f"Mapped Field (VPNRCR): {getattr(res1, 'VPNRCR', 'N/A')} (Should be N/A)")
+
+    # Process Credit
+    res2 = gen_std.generate(data_credit)
+    print(f"Input: VPUN Credit | ProgramID: {res2.VPPGID}")
+    print(f"Mapped Field (VPUNDR): {getattr(res2, 'VPUNDR', 'N/A')} (Should be N/A)")
+    print(f"Mapped Field (VPUNCR): {getattr(res2, 'VPUNCR', 'N/A')}")
+
+    # === TEST 2: Special Logic (BIBTCPP) ===
+    print("\n--- Running Special Logic (BIBTCPP) ---")
+    gen_special = BibtcppGenerator()
+    
+    # Process Debit (Same input data, different logic)
+    res3 = gen_special.generate(data_debit)
+    print(f"Input: VPNR Debit | ProgramID: {res3.VPPGID}")
+    # Amount should be different (1000 * 0.8 = 800)
+    print(f"Mapped Field (VPNRDR): {getattr(res3, 'VPNRDR', 'N/A')}")
