@@ -1,129 +1,147 @@
-既然你已经在使用 `readTree` 转 `JsonNode`，那你的起点已经比“转 Map”的做法高很多了（节省了大量的 HashMap 扩容和对象创建开销）。
+这实际上是生产环境中**最常见**的场景：**“基于类型的策略分发（Type-Based Dispatch）”**。
 
-但是，单纯用 `JsonNode` 结合 SpEL 有一个**痛点**：SpEL 默认不支持直接对 `JsonNode` 使用“点号”访问属性。
+你需要构建一个**二级查找结构**。不能对每一条消息遍历所有规则，而是应该先根据 `eventType` 找到对应的规则集合，然后再执行 SpEL。
 
-如果不做额外处理，你的数据库里的规则必须写成这样：
-❌ **原生写法（不优雅）**：
-`get('header').get('eventType').asText() == 'LOGIN' && get('body').get('age').asInt() > 18`
-
-你真正想要的是这样的“行业标准”写法：
-✅ **优雅写法**：
-`header.eventType == 'LOGIN' && body.age > 18`
-
-要在保持 `JsonNode` 高性能的同时实现这种优雅语法，且满足**高吞吐（1000条/批）** + **安全合规（无漏洞）**，最标准的做法是：**自定义 SpEL 属性访问器 (PropertyAccessor) + 并行流**。
+这种做法的时间复杂度是 **O(1)** （Map 查找），而不是 **O(N)** （遍历规则表），性能依然是顶级的。
 
 ---
 
-### 完整的行业标准落地代码
+### 核心架构图解
 
-这是专门针对你这种 **List<String> (Kafka Batch) -> List<JsonNode> -> SpEL Filter** 场景优化的方案。
+1.  **准备阶段（加载规则）**：把数据库的行转换为一个 `Map<String, List<Expression>>`。
+    *   Key: `eventType` (例如 "LOGIN", "ORDER_PAY")
+    *   Value: 编译好的 SpEL 表达式列表。
+2.  **运行阶段（过滤）**：
+    *   解析 JSON -> 拿到 `JsonNode`。
+    *   提取 `eventType`。
+    *   `Map.get(type)` 拿到特定规则。
+    *   执行规则。
 
-#### 1. 核心魔法：JsonNodePropertyAccessor
-这个类让 SpEL 能够像操作 Java Bean 属性一样操作 `JsonNode` 的字段。
+---
+
+### 落地代码实现
+
+这里我把**规则管理**和**过滤逻辑**分开，模拟真实的业务结构。
+
+#### 1. 规则管理器 (RuleManager)
+负责从数据库加载规则，并预编译成 SpEL 对象。
 
 ```java
-import com.fasterxml.jackson.databind.JsonNode;
-import org.springframework.expression.EvaluationContext;
-import org.springframework.expression.PropertyAccessor;
-import org.springframework.expression.TypedValue;
-import org.springframework.lang.Nullable;
+@Component
+@Slf4j
+public class RuleManager {
 
-// 让 SpEL 能够理解 JsonNode 的 "点号" 访问
-public class JsonNodePropertyAccessor implements PropertyAccessor {
+    private final ExpressionParser parser = new SpelExpressionParser();
 
-    @Override
-    public Class<?>[] getSpecificTargetClasses() {
-        return new Class<?>[]{JsonNode.class};
-    }
+    // 核心数据结构：Key = eventType, Value = 编译后的规则列表
+    // 使用 volatile 或 AtomicReference 保证替换时的线程安全
+    private volatile Map<String, List<Expression>> ruleRegistry = new HashMap<>();
 
-    @Override
-    public boolean canRead(EvaluationContext context, @Nullable Object target, String name) {
-        // 只要 target 是 JsonNode 且包含这个字段，就可以读
-        return target instanceof JsonNode && ((JsonNode) target).has(name);
-    }
+    // 模拟从数据库加载（通常配合 @Scheduled 定时刷新）
+    @PostConstruct
+    public void loadRulesFromDb() {
+        // 假设 DB 数据结构：List<DbRule> (eventType, expressionStr)
+        List<DbRule> dbRules = mockDbQuery(); 
 
-    @Override
-    public TypedValue read(EvaluationContext context, @Nullable Object target, String name) {
-        JsonNode node = ((JsonNode) target).get(name);
-        if (node == null) return TypedValue.NULL;
-
-        // 关键点：自动拆箱，让规则写起来更自然
-        if (node.isTextual()) return new TypedValue(node.asText());
-        if (node.isBoolean()) return new TypedValue(node.asBoolean());
-        if (node.isNumber()) return new TypedValue(node.numberValue()); // 支持 Int, Long, Double
-        if (node.isNull()) return TypedValue.NULL;
+        Map<String, List<Expression>> newRegistry = new HashMap<>();
         
-        // 如果是 Object/Array，返回节点本身，支持嵌套：body.user.name
-        return new TypedValue(node);
+        for (DbRule rule : dbRules) {
+            try {
+                Expression exp = parser.parseExpression(rule.getExpression());
+                // 按 eventType 分组放入 List
+                newRegistry.computeIfAbsent(rule.getEventType(), k -> new ArrayList<>()).add(exp);
+            } catch (Exception e) {
+                log.error("规则编译失败: {}", rule, e);
+            }
+        }
+        
+        // 替换旧缓存（Copy-On-Write 思想，读取时不加锁，性能极高）
+        this.ruleRegistry = newRegistry;
+        log.info("规则已刷新，加载了 {} 个类型的规则", newRegistry.size());
     }
 
-    @Override
-    public boolean canWrite(EvaluationContext context, @Nullable Object target, String name) {
-        return false; // 我们只需要读，不需要写，更安全
+    /**
+     * 根据类型获取规则
+     */
+    public List<Expression> getRules(String eventType) {
+        return ruleRegistry.getOrDefault(eventType, Collections.emptyList());
     }
-
-    @Override
-    public void write(EvaluationContext context, @Nullable Object target, String name, @Nullable Object newValue) {}
+    
+    // 模拟 DB 对象
+    @Data
+    static class DbRule { String eventType; String expression; }
+    
+    private List<DbRule> mockDbQuery() {
+        // 模拟返回
+        return List.of(
+            new DbRule("LOGIN", "body.age > 18"), // LOGIN 事件必须成年
+            new DbRule("LOGIN", "header.source == 'APP'"), // LOGIN 事件必须来源 APP
+            new DbRule("PAYMENT", "body.amount > 0") // PAYMENT 事件金额大于0
+        );
+    }
 }
 ```
 
-#### 2. 高性能并行过滤器
-利用 Kafka 拉取的批次特性，直接上并行流。
+#### 2. 高性能分发过滤器 (DispatchFilterService)
+
+结合之前的并行流和 `JsonNode` 优化。
 
 ```java
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.expression.Expression;
-import org.springframework.expression.ExpressionParser;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.SimpleEvaluationContext;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-
 @Service
-public class KafkaBatchFilterService {
+public class DispatchFilterService {
 
-    private final ObjectMapper objectMapper = new ObjectMapper(); // Jackson 是线程安全的
-    private final ExpressionParser parser = new SpelExpressionParser();
-    private final Map<String, Expression> expressionCache = new ConcurrentHashMap<>();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RuleManager ruleManager;
+    private final JsonNodePropertyAccessor jsonAccessor = new JsonNodePropertyAccessor(); // 之前的那个类
 
-    // 预加载我们的 Accessor
-    private final JsonNodePropertyAccessor jsonAccessor = new JsonNodePropertyAccessor();
+    public DispatchFilterService(RuleManager ruleManager) {
+        this.ruleManager = ruleManager;
+    }
 
-    /**
-     * 高吞吐过滤入口
-     * @param rawMessages Kafka 原始消息列表
-     * @param ruleStr 数据库取出的规则 (例如: "header.eventType == 'A' && body.amount > 100")
-     */
-    public List<String> filterBatch(List<String> rawMessages, String ruleStr) {
-        if (rawMessages == null || rawMessages.isEmpty()) return new ArrayList<>();
+    public List<String> filterBatch(List<String> rawMessages) {
+        if (rawMessages == null || rawMessages.isEmpty()) return List.of();
 
-        // 1. 编译并缓存表达式 (只做一次)
-        Expression exp = expressionCache.computeIfAbsent(ruleStr, parser::parseExpression);
-
-        // 2. 并行流处理 (Parallel Stream)
-        // 针对 1000 条数据，并行流能充分利用多核 CPU，大幅降低 P99 延迟
-        return rawMessages.parallelStream() 
+        return rawMessages.parallelStream() // 1. 开启并行加速
             .filter(jsonStr -> {
                 try {
-                    // A. 转 JsonNode (这一步你本来就在做)
+                    // 2. 解析 JSON
                     JsonNode root = objectMapper.readTree(jsonStr);
+                    
+                    // 3. 提取 EventType (快速定位策略)
+                    // 假设你的结构是 header.eventType，用 path() 防止空指针
+                    String eventType = root.path("header").path("eventType").asText(null);
+                    
+                    if (eventType == null) {
+                        return false; // 或者 true，看你的业务：没类型的消息要不要？
+                    }
 
-                    // B. 构建安全上下文 (SimpleEvaluationContext 是只读的，扫描能过)
+                    // 4. O(1) 查找对应的规则
+                    List<Expression> rules = ruleManager.getRules(eventType);
+                    
+                    // 如果该类型没有配置规则，默认是“保留”还是“丢弃”？这里假设是保留
+                    if (rules.isEmpty()) {
+                        return true; 
+                    }
+
+                    // 5. 构建上下文 (只读安全模式)
                     SimpleEvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding()
                             .withRootObject(root)
-                            .addPropertyAccessor(jsonAccessor) // 注入魔法
+                            .addPropertyAccessor(jsonAccessor)
                             .build();
 
-                    // C. 执行过滤
-                    return Boolean.TRUE.equals(exp.getValue(context, Boolean.class));
+                    // 6. 遍历执行该类型的所有规则 (AND 逻辑)
+                    for (Expression exp : rules) {
+                        Boolean passed = exp.getValue(context, Boolean.class);
+                        if (passed == null || !passed) {
+                            return false; // 只要有一条规则不满足，直接丢弃
+                        }
+                    }
+                    
+                    return true; // 所有规则都通过
+
                 } catch (Exception e) {
-                    // 生产环境建议只打 debug 日志或 metric 计数，防止日志刷屏
-                    return false; 
+                    // 脏数据处理
+                    return false;
                 }
             })
             .collect(Collectors.toList());
@@ -131,28 +149,40 @@ public class KafkaBatchFilterService {
 }
 ```
 
-### 为什么这套方案是“最优解”？
+---
 
-1.  **解决了“语法丑陋”问题**：
-    *   有了 `JsonNodePropertyAccessor`，你的数据库规则可以直接写：`body.data.price * 0.8 > 100`。
-    *   如果没有它，你得写：`get('body').get('data').get('price').asDouble() * 0.8 > 100`。
+### 这种设计的优势
 
-2.  **解决了“性能”问题**：
-    *   **对象少**：全程操作 `JsonNode`，没有 `Map` 转换，内存占用极低。
-    *   **并行化**：`parallelStream` 会利用 ForkJoinPool 自动分片任务。假设你有 8 核 CPU，处理 1000 条消息的速度理论上会提升 5-7 倍。
-    *   **缓存**：表达式只解析一次，后续全是直接执行。
+1.  **极速分发 (Dispatching)**：
+    不管你数据库里有 10 行规则，还是 10,000 行规则。只要它们属于不同的 `eventType`，在运行时，我只需要 `Map.get("LOGIN")` 这一步操作。
+    *   **查找耗时**：接近 0ns。
+    *   **执行耗时**：只取决于当前这个 eventType 下有几条规则。
 
-3.  **解决了“安全”问题**：
-    *   使用了 `SimpleEvaluationContext`。这个上下文是**沙箱化**的，它切断了 SpEL 调用 Java 静态方法（如 `Runtime.exec`）的能力，只能读取我们允许的 `JsonNode` 属性。安全扫描工具看到 `SimpleEvaluationContext` 通常都会放行。
+2.  **业务隔离**：
+    *   `LOGIN` 事件的规则变复杂了，完全不会影响 `PAYMENT` 事件的处理速度。
 
-### 针对 1000 条/批 的额外优化建议
+3.  **支持通用规则（Global Rules）**：
+    如果你有“所有消息都必须满足”的规则（比如 `version > 1`），你可以稍微改一下代码：
+    ```java
+    // 先跑通用规则
+    List<Expression> globalRules = ruleManager.getRules("GLOBAL");
+    if (!check(globalRules, context)) return false;
 
-如果你的过滤比（20%保留）非常稳定，且 JSON 很大（比如几 KB），解析 JSON 本身即使并行也很耗时。可以加一个**字符串级的前置预判**（Bloom Filter 思想）：
+    // 再跑特定类型规则
+    List<Expression> specificRules = ruleManager.getRules(eventType);
+    if (!check(specificRules, context)) return false;
+    ```
+
+### 性能瓶颈预警
+
+在这个架构下，唯一的性能风险点在于 **“提取 eventType”** 这一步。
 
 ```java
-// 在 filter 内部的最开始加一行
-if (!ruleStr.contains("OR") && !jsonStr.contains("关键特征值")) {
-    return false; // 如果规则要求 type='VIP'，但字符串里连 'VIP' 都没有，直接扔掉，不用解析 JSON
-}
+// 这一行非常快，因为 Jackson 的 TreeModel 已经构建好了
+String eventType = root.path("header").path("eventType").asText();
 ```
-这对于“大部分数据都要被过滤掉”的场景，是极其暴力的性能提升手段。
+
+但如果你的 JSON 结构极其深，或者 `eventType` 藏得很深，这一步会稍微慢一点点（仍然是纳秒级）。
+
+**总结：**
+采用 **Map<EventType, List<SpEL>>** 的分发模式，配合 **并行流**，处理 1000 条多类型混合的复杂规则消息，性能依然可以保持在 **5ms - 10ms** 级别。这就是标准的高性能规则引擎写法。
