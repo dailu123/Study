@@ -140,3 +140,12 @@ private boolean checkCondition(String op, String actual, String expected) {
 3.  **去掉 INFO 级别的全量日志**。
 4.  **明确过滤逻辑**（是所有条件都通过才留，还是只要有一个通过就留）。
 5.  **废弃 `List<String>` 传参**，使用具名对象 `FilterRule` 来包装过滤规则，避免 `get(0)` 这种难以维护的代码。
+
+
+
+首推 SpEL (SimpleEvaluationContext)：
+理由：你大概率在用 Spring，零新增依赖。只要使用了 SimpleEvaluationContext，安全团队通常挑不出毛病（因为它变成了只读的）。代码改动最小。
+次推 Apache Commons JEXL：
+理由：如果你们公司对 Spring 的组件也有顾虑，Apache 的牌子最硬，扫描最容易过。
+最后考虑 JsonPath：
+理由：只有在你的规则极其简单，且对安全要求变态高（连表达式引擎都不让用）的时候才用。
