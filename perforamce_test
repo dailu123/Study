@@ -1,55 +1,65 @@
-from airflow import DAG
-from airflow.operators.bash import BashOperator
-from airflow.models import Variable
-from datetime import datetime
+🎯 1. Test Objective
+The primary goal of this load test is to identify the maximum concurrent task execution capacity of our Apache Airflow cluster running on Alibaba Cloud ACK (KubernetesExecutor).
+By scaling the worker nodes from 3 to 10 (16C64G per node), we aim to:
+Discover the absolute concurrency limit of the Airflow Scheduler and Database.
+Measure the latency of task state transitions (Queued 
+→
+→
+ Running).
+Establish a baseline configuration for future production scaling.
+🏗️ 2. Infrastructure & Environment Setup
+2.1 Kubernetes Cluster (Alibaba Cloud ACK)
+Component	Specification	Notes
+Worker Nodes	10 x ecs.g[x].4xlarge (16 Core, 64GB)	Scaled up from 3 nodes. Total capacity: 160C, 640G.
+Max Pods per Node	[128 or 256]	Configured in Node Pool.
+Network Plugin	[Terway / Flannel]	IP exhaustion monitoring is required.
+2.2 Airflow Core Components (Control Plane)
+Component	Replicas	Resources (Req/Lim)	Key Configurations
+Scheduler	3	[e.g., 2C 4G]	Multi-scheduler HA enabled for high throughput.
+Webserver	2	[e.g., 2C 4G]	web_server_worker_concurrency: 4
+PgBouncer	1 (or 2)	[e.g., 1C 2G]	maxClientConn: 2000 (Crucial for connection pooling)
+2.3 Database (Metadata Store)
+Type: [e.g., Alibaba Cloud RDS PostgreSQL 13]
+Specification: [e.g., 8 Core 32GB]
+Max Connections: [e.g., 2000]
+⚙️ 3. Airflow Tuning Parameters Applied
+The following critical environment variables and configurations were injected via Helm values.yaml to unlock the concurrency limits:
+Global Limits:
+AIRFLOW__CORE__PARALLELISM: [e.g., 2000] (Absolute ceiling for the cluster)
+Admin -> Pools -> default_pool: [e.g., 2000 slots] (Must match or exceed parallelism)
+Scheduler & K8s Optimization:
+AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE: 100 (To prevent API Rate Limits while keeping high throughput)
+AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY: 512
+AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_IMAGE_PULL_POLICY: IfNotPresent (Crucial for fast Pod startup)
+Test DAG Configuration:
+max_active_tasks: [Target Concurrency]
+Worker Pod Resources: CPU [50m], Memory [128Mi] (Lightweight sleep tasks)
+Task Command: sleep 60
+🚀 4. Test Execution & Results
+Instructions: Run the stress test DAG with varying stress_task_count variables and record the observations below.
+Test Run	Worker Nodes	Target Concurrent Tasks	Actual Peak Tasks (Running)	Time to All Running (Approx)	Bottlenecks / Error Logs Observed
+#1	3	500	[e.g., 500]	[e.g., 45 sec]	[e.g., None, system stable]
+#2	10	1000	[To be filled]	[To be filled]	[To be filled]
+#3	10	1500	[To be filled]	[To be filled]	[To be filled]
+#4 (Limit)	10	2000	[To be filled]	[To be filled]	[e.g., DB CPU hit 100%, CoreDNS timeouts]
+📊 5. Resource Utilization & Monitoring Observations
+(Record system behavior during the highest successful load test)
+Kubernetes (ACK) Metrics
 
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'start_date': datetime(2023, 1, 1),
-    'retries': 0,
-}
+APIServer API Latency: [Normal / Spike observed / Rate-limited]
 
-# ==========================================
-# 从 Airflow UI 的 Admin -> Variables 动态获取参数
-# 如果没有在 UI 中配置，则使用 default_var 后面的默认值
-# ==========================================
-# 1. 动态生成多少个并行的 Task (默认 400)
-STRESS_TASK_COUNT = int(Variable.get("stress_task_count", default_var=400))
+CoreDNS Load: [Stable / High CPU due to 1000+ Pods resolving DB endpoint]
 
-# 2. 每个 Task 休眠多少秒 (默认 60 秒)
-STRESS_SLEEP_TIME = int(Variable.get("stress_sleep_time", default_var=60))
+Node CPU/Mem Load: [To be filled - e.g., Max node CPU reached 80% during Pod creation phase]
+Database & Network Metrics
 
-# 3. 这个 DAG 允许的最大同时运行的 Task 数 (默认 500)
-# 注意：这不能超过 airflow.cfg 里的全局 core.parallelism
-STRESS_MAX_ACTIVE_TASKS = int(Variable.get("stress_max_active_tasks", default_var=500))
+Active DB Connections: [e.g., Peaked at 450 with PgBouncer]
 
-# 4. 这个 DAG 允许的最大同时运行的 DAG Run 数 (默认 100)
-STRESS_MAX_ACTIVE_RUNS = int(Variable.get("stress_max_active_runs", default_var=100))
+Database CPU Utilization: [e.g., Peaked at 65%]
 
-with DAG(
-    'stress_test_kubernetes_executor',
-    default_args=default_args,
-    schedule_interval=None, # 手动触发
-    max_active_tasks=STRESS_MAX_ACTIVE_TASKS, # 替代老版本的 concurrency
-    max_active_runs=STRESS_MAX_ACTIVE_RUNS,
-    catchup=False,
-    tags=['stress_test'], # 加个 tag 方便在 UI 里搜索
-) as dag:
+Available VPC IP Addresses: [e.g., Consumed 1500 IPs, 2000 IPs remaining]
+Airflow Control Plane
 
-    # 动态生成 STRESS_TASK_COUNT 个任务
-    for i in range(STRESS_TASK_COUNT):
-        task = BashOperator(
-            task_id=f'sleep_task_{i}',
-            # 动态使用休眠时间
-            bash_command=f'sleep {STRESS_SLEEP_TIME}', 
-            executor_config={
-                "KubernetesExecutor": {
-                    # 压测时尽量把 pod 资源请求调小，让节点能塞下更多的 Pod
-                    "request_cpu": "50m",
-                    "request_memory": "128Mi",
-                    "limit_cpu": "100m",
-                    "limit_memory": "256Mi"
-                }
-            }
-        )
+Scheduler CPU: [e.g., 3 Schedulers peaked at 80% CPU each]
+
+Webserver Responsiveness: [UI smooth / UI laggy but recovered / 502 Bad Gateway]
