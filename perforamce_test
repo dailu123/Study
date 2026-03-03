@@ -1,0 +1,55 @@
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from airflow.models import Variable
+from datetime import datetime
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2023, 1, 1),
+    'retries': 0,
+}
+
+# ==========================================
+# 从 Airflow UI 的 Admin -> Variables 动态获取参数
+# 如果没有在 UI 中配置，则使用 default_var 后面的默认值
+# ==========================================
+# 1. 动态生成多少个并行的 Task (默认 400)
+STRESS_TASK_COUNT = int(Variable.get("stress_task_count", default_var=400))
+
+# 2. 每个 Task 休眠多少秒 (默认 60 秒)
+STRESS_SLEEP_TIME = int(Variable.get("stress_sleep_time", default_var=60))
+
+# 3. 这个 DAG 允许的最大同时运行的 Task 数 (默认 500)
+# 注意：这不能超过 airflow.cfg 里的全局 core.parallelism
+STRESS_MAX_ACTIVE_TASKS = int(Variable.get("stress_max_active_tasks", default_var=500))
+
+# 4. 这个 DAG 允许的最大同时运行的 DAG Run 数 (默认 100)
+STRESS_MAX_ACTIVE_RUNS = int(Variable.get("stress_max_active_runs", default_var=100))
+
+with DAG(
+    'stress_test_kubernetes_executor',
+    default_args=default_args,
+    schedule_interval=None, # 手动触发
+    max_active_tasks=STRESS_MAX_ACTIVE_TASKS, # 替代老版本的 concurrency
+    max_active_runs=STRESS_MAX_ACTIVE_RUNS,
+    catchup=False,
+    tags=['stress_test'], # 加个 tag 方便在 UI 里搜索
+) as dag:
+
+    # 动态生成 STRESS_TASK_COUNT 个任务
+    for i in range(STRESS_TASK_COUNT):
+        task = BashOperator(
+            task_id=f'sleep_task_{i}',
+            # 动态使用休眠时间
+            bash_command=f'sleep {STRESS_SLEEP_TIME}', 
+            executor_config={
+                "KubernetesExecutor": {
+                    # 压测时尽量把 pod 资源请求调小，让节点能塞下更多的 Pod
+                    "request_cpu": "50m",
+                    "request_memory": "128Mi",
+                    "limit_cpu": "100m",
+                    "limit_memory": "256Mi"
+                }
+            }
+        )
